@@ -24,7 +24,7 @@ contract CreateTest is Test {
         categories[1] = Nft.Category({price: 2 ether, supply: 200, merkleRoot: bytes32(0)});
 
         // create the nft
-        Nft nft = Nft(launchpad.create("name", "symbol", categories, bytes32(0)));
+        Nft nft = Nft(launchpad.create(bytes32(0), "name", "symbol", categories, false));
 
         // check that the name is correct
         assertEq(nft.name(), "name");
@@ -45,6 +45,6 @@ contract CreateTest is Test {
 
         // check that it reverts
         vm.expectRevert(Nft.TooManyCategories.selector);
-        launchpad.create("name", "symbol", categories, bytes32(0));
+        launchpad.create(bytes32(0), "name", "symbol", categories, false);
     }
 }

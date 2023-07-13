@@ -15,15 +15,18 @@ contract BatonLaunchpad is Ownable {
         setNftImplementation(_nftImplementation);
     }
 
-    function create(string calldata name, string calldata symbol, Nft.Category[] calldata categories, bytes32 salt)
-        public
-        returns (Nft nft)
-    {
+    function create(
+        bytes32 salt,
+        string calldata name,
+        string calldata symbol,
+        Nft.Category[] calldata categories,
+        bool refunds
+    ) public returns (Nft nft) {
         // deploy the nft
         nft = Nft(payable(nftImplementation.cloneDeterministic(salt)));
 
         // initialize the nft
-        nft.initialize(name, symbol, categories);
+        nft.initialize(name, symbol, categories, refunds);
     }
 
     function setNftImplementation(address _nftImplementation) public onlyOwner {
