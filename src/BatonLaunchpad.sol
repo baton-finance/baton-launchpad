@@ -17,7 +17,11 @@ contract BatonLaunchpad {
         public
         returns (Nft nft)
     {
+        // deploy the nft
         nft = Nft(payable(nftImplementation.cloneDeterministic(salt)));
+
+        // initialize the nft
+        nft.initialize(name, symbol, categories);
     }
 
     function setNftImplementation(address _nftImplementation) public {

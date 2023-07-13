@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {ERC721A} from "ERC721A/ERC721A.sol";
+import {ERC721AUpgradeable} from "ERC721A-Upgradeable/ERC721AUpgradeable.sol";
 
-contract Nft is ERC721A {
+contract Nft is ERC721AUpgradeable {
     error TooManyCategories();
     error CategoryDoesNotExist();
     error InvalidEthAmount();
@@ -17,9 +17,15 @@ contract Nft is ERC721A {
 
     Category[] public categories;
 
-    constructor(string memory _name, string memory _symbol, Category[] memory _categories) ERC721A(_name, _symbol) {
+    function initialize(string memory _name, string memory _symbol, Category[] memory _categories)
+        public
+        initializerERC721A
+    {
         // check that there is less than 256 categories
         if (_categories.length > 256) revert TooManyCategories();
+
+        // initialize the ERC721AUpgradeable
+        __ERC721A_init(_name, _symbol);
 
         // push all categories
         for (uint256 i = 0; i < _categories.length; i++) {
