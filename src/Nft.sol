@@ -9,7 +9,7 @@ contract Nft is ERC721AUpgradeable {
     error CategoryDoesNotExist();
     error InvalidEthAmount();
     error InsufficientSupply();
-    error InvalidProof();
+    error InvalidMerkleProof();
 
     struct Category {
         uint128 price;
@@ -54,9 +54,11 @@ contract Nft is ERC721AUpgradeable {
         // if the merkle root is not zero then verify that the caller is whitelisted
         if (
             category.merkleRoot != bytes32(0)
-                && MerkleProofLib.verifyCalldata(proof, category.merkleRoot, keccak256(abi.encode(msg.sender)))
+                && !MerkleProofLib.verifyCalldata(
+                    proof, category.merkleRoot, keccak256(bytes.concat(keccak256(abi.encode(msg.sender))))
+                )
         ) {
-            revert InvalidProof();
+            revert InvalidMerkleProof();
         }
 
         // 👷 Effects 👷
