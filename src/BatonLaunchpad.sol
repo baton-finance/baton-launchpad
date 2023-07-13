@@ -2,14 +2,16 @@
 pragma solidity ^0.8.20;
 
 import {LibClone} from "solady/utils/LibClone.sol";
+import {Ownable} from "solady/auth/Ownable.sol";
 import {Nft} from "./Nft.sol";
 
-contract BatonLaunchpad {
+contract BatonLaunchpad is Ownable {
     using LibClone for address;
 
     address public nftImplementation;
 
     constructor(address _nftImplementation) {
+        _initializeOwner(msg.sender);
         setNftImplementation(_nftImplementation);
     }
 
@@ -24,7 +26,7 @@ contract BatonLaunchpad {
         nft.initialize(name, symbol, categories);
     }
 
-    function setNftImplementation(address _nftImplementation) public {
+    function setNftImplementation(address _nftImplementation) public onlyOwner {
         nftImplementation = _nftImplementation;
     }
 }
