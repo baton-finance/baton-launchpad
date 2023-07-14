@@ -14,6 +14,7 @@ contract Nft is ERC721AUpgradeable {
     error InsufficientSupply();
     error InvalidMerkleProof();
     error RefundsNotEnabled();
+    error Unauthorized();
 
     struct Category {
         uint128 price;
@@ -26,16 +27,30 @@ contract Nft is ERC721AUpgradeable {
         uint128 availableRefund;
     }
 
-    bool public refunds;
+    struct VestingParams {
+        address receiver;
+        uint64 duration;
+        uint32 amount;
+    }
+
+    // feature parameters
     Category[] internal _categories;
+    VestingParams public vestingParams;
+    bool public refunds;
+
+    uint64 public mintEndTimestamp;
+    uint32 public totalVestClaimed;
     mapping(uint8 categoryIndex => uint256) public minted;
     mapping(uint256 tokenId => uint256) public pricePaid;
     mapping(address => Account) public _accounts;
 
-    function initialize(string memory name_, string memory symbol_, Category[] memory categories_, bool refunds_)
-        public
-        initializerERC721A
-    {
+    function initialize(
+        string calldata name_,
+        string calldata symbol_,
+        Category[] calldata categories_,
+        bool refunds_,
+        VestingParams calldata vestingParams_
+    ) public initializerERC721A {
         // check that there is less than 256 categories
         if (categories_.length > 256) revert TooManyCategories();
 
@@ -49,6 +64,9 @@ contract Nft is ERC721AUpgradeable {
 
         // set the refunds flag
         refunds = refunds_;
+
+        // set the vesting params
+        vestingParams = vestingParams_;
     }
 
     function categories(uint8 category) public view returns (Category memory) {
@@ -57,6 +75,10 @@ contract Nft is ERC721AUpgradeable {
 
     function accounts(address account) public view returns (Account memory) {
         return _accounts[account];
+    }
+
+    function min(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a < b ? a : b;
     }
 
     function mint(uint64 amount, uint8 categoryIndex, bytes32[] calldata proof) public payable {
@@ -120,5 +142,29 @@ contract Nft is ERC721AUpgradeable {
 
         // send the refund
         msg.sender.safeTransferETH(totalRefundAmount);
+    }
+
+    function vest(uint256 amount) public {
+        // ✅ Checks ✅
+
+        // check that the caller is the receiver
+        if (msg.sender != vestingParams.receiver) revert Unauthorized();
+
+        // check that there is enough available
+        uint256 available = vested() - totalVestClaimed;
+        if (amount > available) revert InsufficientSupply();
+
+        // 👷 Effects 👷
+
+        // update the total vest claimed
+        totalVestClaimed += uint32(amount);
+
+        // mint the nfts
+        _safeMint(msg.sender, amount);
+    }
+
+    function vested() public view returns (uint256) {
+        uint256 vestingRate = vestingParams.amount * 1e18 / vestingParams.duration;
+        return vestingRate * (min(block.timestamp, mintEndTimestamp + vestingParams.duration) - mintEndTimestamp) / 1e18;
     }
 }
