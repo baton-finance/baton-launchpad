@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 import {ERC721AUpgradeable} from "ERC721A-Upgradeable/ERC721AUpgradeable.sol";
 import {MerkleProofLib} from "solady/utils/MerkleProofLib.sol";
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
+import {FixedPointMathLib} from "solady/utils/FixedPointMathLib.sol";
 
 contract Nft is ERC721AUpgradeable {
     using SafeTransferLib for address;
@@ -15,6 +16,8 @@ contract Nft is ERC721AUpgradeable {
     error InvalidMerkleProof();
     error RefundsNotEnabled();
     error Unauthorized();
+    error MintNotFinished();
+    error InsufficientVestedAmount();
 
     struct Category {
         uint128 price;
@@ -35,14 +38,15 @@ contract Nft is ERC721AUpgradeable {
 
     // feature parameters
     Category[] internal _categories;
-    VestingParams public vestingParams;
+    VestingParams public _vestingParams;
     bool public refunds;
 
-    uint64 public mintEndTimestamp;
-    uint32 public totalVestClaimed;
     mapping(uint8 categoryIndex => uint256) public minted;
     mapping(uint256 tokenId => uint256) public pricePaid;
     mapping(address => Account) public _accounts;
+    uint64 public mintEndTimestamp;
+    uint32 public totalVestClaimed;
+    uint32 public maxMintSupply;
 
     function initialize(
         string calldata name_,
@@ -60,25 +64,16 @@ contract Nft is ERC721AUpgradeable {
         // push all categories
         for (uint256 i = 0; i < categories_.length; i++) {
             _categories.push(categories_[i]);
+
+            // update the max mint supply
+            maxMintSupply += uint32(categories_[i].supply);
         }
 
         // set the refunds flag
         refunds = refunds_;
 
         // set the vesting params
-        vestingParams = vestingParams_;
-    }
-
-    function categories(uint8 category) public view returns (Category memory) {
-        return _categories[category];
-    }
-
-    function accounts(address account) public view returns (Account memory) {
-        return _accounts[account];
-    }
-
-    function min(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a < b ? a : b;
+        _vestingParams = vestingParams_;
     }
 
     function mint(uint64 amount, uint8 categoryIndex, bytes32[] calldata proof) public payable {
@@ -111,6 +106,11 @@ contract Nft is ERC721AUpgradeable {
             // update the account info
             _accounts[msg.sender].totalMinted += amount;
             _accounts[msg.sender].availableRefund += category.price * amount;
+        }
+
+        if (_vestingParams.receiver != address(0) && totalSupply() + amount == maxMintSupply) {
+            // set the mint end timestamp if vesting is enabled and mint is complete
+            mintEndTimestamp = uint64(block.timestamp);
         }
 
         // mint the tokens
@@ -147,12 +147,15 @@ contract Nft is ERC721AUpgradeable {
     function vest(uint256 amount) public {
         // ✅ Checks ✅
 
-        // check that the caller is the receiver
-        if (msg.sender != vestingParams.receiver) revert Unauthorized();
+        // check the caller is the vesting receiver
+        if (msg.sender != _vestingParams.receiver) revert Unauthorized();
+
+        // check that the mint has finished
+        if (mintEndTimestamp == 0) revert MintNotFinished();
 
         // check that there is enough available
         uint256 available = vested() - totalVestClaimed;
-        if (amount > available) revert InsufficientSupply();
+        if (amount > available) revert InsufficientVestedAmount();
 
         // 👷 Effects 👷
 
@@ -164,7 +167,30 @@ contract Nft is ERC721AUpgradeable {
     }
 
     function vested() public view returns (uint256) {
-        uint256 vestingRate = vestingParams.amount * 1e18 / vestingParams.duration;
-        return vestingRate * (min(block.timestamp, mintEndTimestamp + vestingParams.duration) - mintEndTimestamp) / 1e18;
+        if (mintEndTimestamp == 0) return 0;
+
+        uint256 vestingRate = uint256(_vestingParams.amount) * 1e18 / uint256(_vestingParams.duration);
+
+        return FixedPointMathLib.mulDivUp(
+            vestingRate,
+            min(block.timestamp, mintEndTimestamp + _vestingParams.duration) - uint256(mintEndTimestamp),
+            1e18
+        );
+    }
+
+    function categories(uint8 category) public view returns (Category memory) {
+        return _categories[category];
+    }
+
+    function accounts(address account) public view returns (Account memory) {
+        return _accounts[account];
+    }
+
+    function vestingParams() public view returns (VestingParams memory) {
+        return _vestingParams;
+    }
+
+    function min(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a < b ? a : b;
     }
 }
