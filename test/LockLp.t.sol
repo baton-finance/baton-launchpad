@@ -34,17 +34,17 @@ contract LockLpTest is Test {
         // create the nft
         // set the categories
         Nft.Category[] memory categories = new Nft.Category[](1);
-        categories[0] = Nft.Category({price: 1 ether, supply: 100, merkleRoot: bytes32(0)});
+        categories[0] = Nft.Category({price: 1 ether, supply: 3000, merkleRoot: bytes32(0)});
         nft = Nft(
             launchpad.create(
                 bytes32(0),
                 "name",
                 "symbol",
                 categories,
-                100,
+                3000,
                 true,
                 Nft.VestingParams({receiver: address(0), duration: 0, amount: 0}),
-                Nft.LockLpParams({amount: 10, price: 1 ether})
+                Nft.LockLpParams({amount: 1000, price: 1 ether})
             )
         );
 
@@ -52,21 +52,20 @@ contract LockLpTest is Test {
         oracle.setIsDisabled(address(nft), true);
 
         // deal some eth to babe
-        deal(babe, 100 ether);
+        deal(babe, 100_000 ether);
     }
 
     function test_sendsLpTokensToNft() public {
         vm.startPrank(babe);
 
         // mint the nft
-        uint256 amount = 100;
+        uint256 amount = 3000;
         nft.mint{value: amount * nft.categories(0).price}(uint64(amount), 0, new bytes32[](0));
 
         pair = caviar.create(address(nft), address(0), bytes32(0));
 
         // get the expected lp tokens
-        uint256 expectedLpTokens =
-            pair.addQuote(nft.lockLpParams().price * nft.lockLpParams().amount, nft.lockLpParams().amount * 1e18, 0);
+        uint256 expectedLpTokens = pair.addQuote(nft.lockLpParams().price * 100, 100 * 1e18, 0);
 
         // lock the lp
         StolenNftFilterOracle.Message[] memory messages = new StolenNftFilterOracle.Message[](0);
@@ -80,7 +79,7 @@ contract LockLpTest is Test {
         vm.startPrank(babe);
 
         // mint the nft
-        uint256 amount = 100;
+        uint256 amount = 3000;
         nft.mint{value: amount * nft.categories(0).price}(uint64(amount), 0, new bytes32[](0));
 
         // lock the lp
@@ -95,7 +94,7 @@ contract LockLpTest is Test {
         vm.startPrank(babe);
 
         // mint the nft
-        uint256 amount = 100;
+        uint256 amount = 3000;
         nft.mint{value: amount * nft.categories(0).price}(uint64(amount), 0, new bytes32[](0));
 
         pair = caviar.create(address(nft), address(0), bytes32(0));
@@ -104,7 +103,7 @@ contract LockLpTest is Test {
         StolenNftFilterOracle.Message[] memory messages = new StolenNftFilterOracle.Message[](0);
         nft.lockLp(nft.lockLpParams().amount, messages);
 
-        for (uint256 i = 100; i < 100 + nft.lockLpParams().amount; i++) {
+        for (uint256 i = amount; i < amount + nft.lockLpParams().amount; i++) {
             assertEq(nft.ownerOf(i), address(pair));
         }
     }
@@ -113,7 +112,7 @@ contract LockLpTest is Test {
         vm.startPrank(babe);
 
         // mint the nft
-        uint256 amount = 100;
+        uint256 amount = 3000;
         nft.mint{value: amount * nft.categories(0).price}(uint64(amount), 0, new bytes32[](0));
 
         pair = caviar.create(address(nft), address(0), bytes32(0));
@@ -129,7 +128,7 @@ contract LockLpTest is Test {
         vm.startPrank(babe);
 
         // mint the nft
-        uint256 amount = 100;
+        uint256 amount = 3000;
         nft.mint{value: amount * nft.categories(0).price}(uint64(amount), 0, new bytes32[](0));
 
         pair = caviar.create(address(nft), address(0), bytes32(0));
@@ -146,14 +145,14 @@ contract LockLpTest is Test {
     function test_RevertIfLockedLpNotEnabled() public {
         // create the nft
         Nft.Category[] memory categories = new Nft.Category[](1);
-        categories[0] = Nft.Category({price: 1 ether, supply: 100, merkleRoot: bytes32(0)});
+        categories[0] = Nft.Category({price: 1 ether, supply: 3000, merkleRoot: bytes32(0)});
         nft = Nft(
             launchpad.create(
                 keccak256(abi.encode(1)),
                 "name",
                 "symbol",
                 categories,
-                100,
+                3000,
                 true,
                 Nft.VestingParams({receiver: address(0xdead), duration: 0, amount: 0}),
                 Nft.LockLpParams({amount: 0, price: 0})
@@ -163,7 +162,7 @@ contract LockLpTest is Test {
         vm.startPrank(babe);
 
         // mint the nft
-        uint256 amount = 100;
+        uint256 amount = 3000;
         nft.mint{value: amount * nft.categories(0).price}(uint64(amount), 0, new bytes32[](0));
 
         // lock the lp
@@ -187,7 +186,7 @@ contract LockLpTest is Test {
         vm.startPrank(babe);
 
         // mint the nft
-        uint256 amount = 100;
+        uint256 amount = 3000;
         nft.mint{value: amount * nft.categories(0).price}(uint64(amount), 0, new bytes32[](0));
 
         // assert that the mint end timestamp was set
@@ -209,7 +208,7 @@ contract LockLpTest is Test {
         vm.startPrank(babe);
 
         // mint the nft
-        uint256 amount = 100;
+        uint256 amount = 3000;
         nft.mint{value: amount * nft.categories(0).price}(uint64(amount), 0, new bytes32[](0));
 
         pair = caviar.create(address(nft), address(0), bytes32(0));
@@ -228,14 +227,14 @@ contract LockLpTest is Test {
         vm.startPrank(babe);
 
         // mint the nft
-        uint256 amount = 100;
+        uint256 amount = 3000;
         nft.mint{value: amount * nft.categories(0).price}(uint64(amount), 0, new bytes32[](0));
 
         pair = caviar.create(address(nft), address(0), bytes32(0));
 
         // lock the lp
         StolenNftFilterOracle.Message[] memory messages = new StolenNftFilterOracle.Message[](0);
-        uint32 amountToLock = 10;
+        uint32 amountToLock = nft.lockLpParams().amount;
         nft.lockLp(amountToLock, messages);
 
         // try to transfer nfts to the pair

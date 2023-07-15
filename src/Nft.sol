@@ -220,14 +220,20 @@ contract Nft is ERC721AUpgradeable {
 
         // 👷 Effects 👷
 
-        uint256[] memory tokenIds = new uint256[](amount);
-        uint256 nextTokenId = _nextTokenId();
-        for (uint256 i = 0; i < amount; i++) {
-            tokenIds[i] = nextTokenId + i;
+        // only mint at most 100 NFTs to this contract, the rest will be minted directly to the pair.
+        uint256 amountToMint = min(amount, 100);
+        uint256[] memory tokenIds = new uint256[](amountToMint);
+
+        // fix stack too deep
+        {
+            uint256 nextTokenId = _nextTokenId();
+            for (uint256 i = 0; i < amountToMint; i++) {
+                tokenIds[i] = nextTokenId + i;
+            }
         }
 
         // mint the tokens
-        _mint(address(this), amount);
+        _mint(address(this), amountToMint);
 
         // 🛠️ Interactions 🛠️
 
@@ -235,6 +241,13 @@ contract Nft is ERC721AUpgradeable {
         Pair pair = Pair(caviar.pairs(address(this), address(0), bytes32(0)));
         if (address(pair) == address(0)) {
             pair = caviar.create(address(this), address(0), bytes32(0));
+        }
+
+        if (amountToMint < amount) {
+            // if the amount is greater than 100 then mint the remaining tokens directly to the pair.
+            // this is done to take advantage of ERC721A's amortization of the gas cost of minting.
+            // we save a lot of gas by doing this.
+            _mint(address(pair), amount - amountToMint); // <-- 👷 Late effect (safe)
         }
 
         // approve the pair to transfer the NFTs
