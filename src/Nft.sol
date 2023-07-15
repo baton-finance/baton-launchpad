@@ -199,7 +199,7 @@ contract Nft is ERC721AUpgradeable {
         _safeMint(msg.sender, amount);
     }
 
-    function lockLp(uint256[] calldata tokenIds, IPair.Message[] calldata messages) {
+    function lockLp(uint32 amount, IPair.Message[] calldata messages) {
         // ✅ Checks ✅
 
         // check that the mint has ended
@@ -209,15 +209,21 @@ contract Nft is ERC721AUpgradeable {
         if (_lockLpParams.amount == 0) revert LockedLpNotEnabled();
 
         // update the locked lp supply
-        lockedLpSupply += uint32(tokenIds.length); // <-- 👷 Effect (safe)
+        lockedLpSupply += amount; // <-- 👷 Early effect (safe)
 
         // check that there is enough available
         if (lockedLpSupply > _lockLpParams.amount) revert InsufficientLpAmount();
 
         // 👷 Effects 👷
 
+        uint256[] memory tokenIds = new uint256[](amount);
+        uint256 nextTokenId = _nextTokenId();
+        for (uint256 i = 0; i < amount; i++) {
+            tokenIds[i] = nextTokenId + i;
+        }
+
         // mint the tokens
-        _mint(address(this), tokenIds.length);
+        _mint(address(this), amount);
 
         // 🛠️ Interactions 🛠️
 
