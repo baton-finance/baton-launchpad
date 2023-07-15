@@ -5,7 +5,8 @@ import {ERC721AUpgradeable} from "ERC721A-Upgradeable/ERC721AUpgradeable.sol";
 import {MerkleProofLib} from "solady/utils/MerkleProofLib.sol";
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 import {FixedPointMathLib} from "solady/utils/FixedPointMathLib.sol";
-import {ICaviar, IPair} from "./interfaces/ICaviar.sol";
+import {Caviar, StolenNftFilterOracle} from "caviar/Caviar.sol";
+import {Pair} from "caviar/Pair.sol";
 
 contract Nft is ERC721AUpgradeable {
     using SafeTransferLib for address;
@@ -24,6 +25,7 @@ contract Nft is ERC721AUpgradeable {
     error LockedLpNotEnabled();
     error InsufficientLpAmount();
     error LpStillBeingLocked();
+    error InvalidNftAmount();
 
     struct Category {
         uint128 price;
@@ -43,12 +45,12 @@ contract Nft is ERC721AUpgradeable {
     }
 
     struct LockLpParams {
-        uint128 amount;
+        uint32 amount;
         uint128 price;
     }
 
     // immutables
-    ICaviar public immutable caviar;
+    Caviar public immutable caviar;
 
     // feature parameters
     Category[] internal _categories;
@@ -65,7 +67,7 @@ contract Nft is ERC721AUpgradeable {
     uint32 public lockedLpSupply;
 
     constructor(address caviar_) {
-        caviar = ICaviar(caviar_);
+        caviar = Caviar(caviar_);
     }
 
     function initialize(
@@ -111,11 +113,16 @@ contract Nft is ERC721AUpgradeable {
 
         Category memory category = _categories[categoryIndex];
 
+        // check that input amount of nfts to mint is not zero
+        if (amount == 0) revert InvalidNftAmount();
+
         // check that the price is correct
         if (msg.value != category.price * amount) revert InvalidEthAmount();
 
         // check that there is enough supply
-        if (minted[categoryIndex] + amount > category.supply) revert InsufficientSupply();
+        if (minted[categoryIndex] + amount > category.supply || totalSupply() + amount > maxMintSupply) {
+            revert InsufficientSupply();
+        }
 
         // if the merkle root is not zero then verify that the caller is whitelisted
         if (
@@ -138,16 +145,13 @@ contract Nft is ERC721AUpgradeable {
             _accounts[msg.sender].availableRefund += category.price * amount;
         }
 
-        if (
-            (_vestingParams.receiver != address(0) || _lockLpParams.amount > 0)
-                && totalSupply() + amount == maxMintSupply
-        ) {
+        // mint the tokens
+        _safeMint(msg.sender, amount);
+
+        if ((_vestingParams.receiver != address(0) || _lockLpParams.amount > 0) && totalSupply() == maxMintSupply) {
             // set the mint end timestamp if vesting or locked lp is enabled and mint is complete
             mintEndTimestamp = uint64(block.timestamp);
         }
-
-        // mint the tokens
-        _safeMint(msg.sender, amount);
     }
 
     function refund(uint256[] calldata tokenIds) public {
@@ -199,7 +203,7 @@ contract Nft is ERC721AUpgradeable {
         _safeMint(msg.sender, amount);
     }
 
-    function lockLp(uint32 amount, IPair.Message[] calldata messages) {
+    function lockLp(uint32 amount, StolenNftFilterOracle.Message[] calldata messages) public {
         // ✅ Checks ✅
 
         // check that the mint has ended
@@ -228,10 +232,13 @@ contract Nft is ERC721AUpgradeable {
         // 🛠️ Interactions 🛠️
 
         // if the caviar pair does not exist then create it
-        IPair pair = IPair(caviar.pairs(address(this), address(0), bytes32(0)));
+        Pair pair = Pair(caviar.pairs(address(this), address(0), bytes32(0)));
         if (address(pair) == address(0)) {
             pair = caviar.create(address(this), address(0), bytes32(0));
         }
+
+        // approve the pair to transfer the NFTs
+        this.setApprovalForAll(address(pair), true);
 
         // deposit liquidity into the pair
         // we can ignore the min lp token and price bounds as we are the only ones that can deposit into the pair due
@@ -266,6 +273,10 @@ contract Nft is ERC721AUpgradeable {
         return _vestingParams;
     }
 
+    function lockLpParams() public view returns (LockLpParams memory) {
+        return _lockLpParams;
+    }
+
     function min(uint256 a, uint256 b) internal pure returns (uint256) {
         return a < b ? a : b;
     }
@@ -288,7 +299,7 @@ contract Nft is ERC721AUpgradeable {
         return minEth;
     }
 
-    function transferFrom(address from, address to, uint256 tokenId) public override {
+    function transferFrom(address from, address to, uint256 tokenId) public payable override {
         // disable all transfers to the caviar pair until the lp has finished locking.
         // if lp locking is not enabled then this will always be false (0 < 0 == false).
         if (lockedLpSupply < _lockLpParams.amount && from != address(this)) {
