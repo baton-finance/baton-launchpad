@@ -18,6 +18,9 @@ contract Nft is ERC721AUpgradeable {
     error Unauthorized();
     error MintNotFinished();
     error InsufficientVestedAmount();
+    error CategoriesNotSortedByPrice();
+    error InsufficientEthRaisedForLockedLp();
+    error LockedLpNotEnabled();
 
     struct Category {
         uint128 price;
@@ -36,10 +39,16 @@ contract Nft is ERC721AUpgradeable {
         uint32 amount;
     }
 
+    struct LockLpParams {
+        uint128 amount;
+        uint128 price;
+    }
+
     // feature parameters
     Category[] internal _categories;
     VestingParams public _vestingParams;
     bool public refunds;
+    LockLpParams public _lockLpParams;
 
     mapping(uint8 categoryIndex => uint256) public minted;
     mapping(uint256 tokenId => uint256) public pricePaid;
@@ -52,11 +61,18 @@ contract Nft is ERC721AUpgradeable {
         string calldata name_,
         string calldata symbol_,
         Category[] calldata categories_,
+        uint32 maxMintSupply_,
         bool refunds_,
-        VestingParams calldata vestingParams_
+        VestingParams calldata vestingParams_,
+        LockLpParams calldata lockLpParams_
     ) public initializerERC721A {
         // check that there is less than 256 categories
         if (categories_.length > 256) revert TooManyCategories();
+
+        // check that enough eth will be raised for the locked lp
+        if (lockLpParams_.amount * lockLpParams_.price > minEthRaised(categories_, maxMintSupply_)) {
+            revert InsufficientEthRaisedForLockedLp();
+        }
 
         // initialize the ERC721AUpgradeable
         __ERC721A_init(name_, symbol_);
@@ -64,16 +80,19 @@ contract Nft is ERC721AUpgradeable {
         // push all categories
         for (uint256 i = 0; i < categories_.length; i++) {
             _categories.push(categories_[i]);
-
-            // update the max mint supply
-            maxMintSupply += uint32(categories_[i].supply);
         }
+
+        // set the max mint supply
+        maxMintSupply = maxMintSupply_;
 
         // set the refunds flag
         refunds = refunds_;
 
         // set the vesting params
         _vestingParams = vestingParams_;
+
+        // set the lock lp params
+        _lockLpParams = lockLpParams_;
     }
 
     function mint(uint64 amount, uint8 categoryIndex, bytes32[] calldata proof) public payable {
@@ -108,8 +127,11 @@ contract Nft is ERC721AUpgradeable {
             _accounts[msg.sender].availableRefund += category.price * amount;
         }
 
-        if (_vestingParams.receiver != address(0) && totalSupply() + amount == maxMintSupply) {
-            // set the mint end timestamp if vesting is enabled and mint is complete
+        if (
+            (_vestingParams.receiver != address(0) || _lockLpParams.amount > 0)
+                && totalSupply() + amount == maxMintSupply
+        ) {
+            // set the mint end timestamp if vesting or locked lp is enabled and mint is complete
             mintEndTimestamp = uint64(block.timestamp);
         }
 
@@ -166,6 +188,16 @@ contract Nft is ERC721AUpgradeable {
         _safeMint(msg.sender, amount);
     }
 
+    function lockLp(uint256[] calldata tokenIds) {
+        // ✅ Checks ✅
+
+        // check that the mint has ended
+        if (mintEndTimestamp == 0) revert MintNotFinished();
+
+        // check that locked lp is enabled
+        if (_lockLpParams.amount == 0) revert LockedLpNotEnabled();
+    }
+
     function vested() public view returns (uint256) {
         if (mintEndTimestamp == 0) return 0;
 
@@ -192,5 +224,23 @@ contract Nft is ERC721AUpgradeable {
 
     function min(uint256 a, uint256 b) internal pure returns (uint256) {
         return a < b ? a : b;
+    }
+
+    function minEthRaised(Category[] calldata categories, uint256 availableMintSupply) public pure returns (uint256) {
+        uint256 minEth = 0;
+
+        for (uint256 i = 0; i < categories.length; i++) {
+            // check that the categories are sorted by price
+            if (i != 0 && categories[i - 1].price > categories[i].price) revert CategoriesNotSortedByPrice();
+
+            // add to the total min eth raised
+            minEth += categories[i].price * min(categories[i].supply, availableMintSupply);
+            availableMintSupply -= min(categories[i].supply, availableMintSupply);
+
+            // break if there is no more available mint supply
+            if (availableMintSupply == 0) break;
+        }
+
+        return minEth;
     }
 }

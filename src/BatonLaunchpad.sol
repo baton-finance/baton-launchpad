@@ -20,14 +20,16 @@ contract BatonLaunchpad is Ownable {
         string calldata name,
         string calldata symbol,
         Nft.Category[] calldata categories,
+        uint32 maxMintSupply,
         bool refunds,
-        Nft.VestingParams calldata vestingInfo
+        Nft.VestingParams calldata vestingParmas,
+        Nft.LockLpParams calldata lockLpParams
     ) public returns (Nft nft) {
         // deploy the nft
         nft = Nft(payable(nftImplementation.cloneDeterministic(salt)));
 
         // initialize the nft
-        nft.initialize(name, symbol, categories, refunds, vestingInfo);
+        nft.initialize(name, symbol, categories, maxMintSupply, refunds, vestingParmas, lockLpParams);
     }
 
     function setNftImplementation(address _nftImplementation) public onlyOwner {
