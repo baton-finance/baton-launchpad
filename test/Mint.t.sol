@@ -11,14 +11,14 @@ contract CreateTest is Test {
     Nft nftImplementation;
 
     function setUp() public {
-        // deploy the nft implementation
-        nftImplementation = new Nft();
+        // // deploy the nft implementation
+        // nftImplementation = new Nft();
 
-        // deploy the launchpad
-        launchpad = new BatonLaunchpad(address(nftImplementation));
+        // // deploy the launchpad
+        // launchpad = new BatonLaunchpad(address(nftImplementation));
 
-        // deal some eth to babe
-        deal(babe, 100 ether);
+        // // deal some eth to babe
+        // deal(babe, 100 ether);
     }
 
     function generateMerkleRoot() public returns (bytes32) {
