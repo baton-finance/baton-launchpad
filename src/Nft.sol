@@ -27,6 +27,7 @@ contract Nft is ERC721AUpgradeable {
     error InsufficientLpAmount();
     error LpStillBeingLocked();
     error InvalidNftAmount();
+    error YieldFarmNotEnabled();
 
     struct Category {
         uint128 price;
@@ -50,6 +51,11 @@ contract Nft is ERC721AUpgradeable {
         uint128 price;
     }
 
+    struct YieldFarmParams {
+        uint32 amount;
+        uint64 duration;
+    }
+
     // immutables
     Caviar public immutable caviar;
     BatonLaunchpad public immutable batonLaunchpad;
@@ -58,6 +64,7 @@ contract Nft is ERC721AUpgradeable {
     Category[] internal _categories;
     VestingParams internal _vestingParams;
     LockLpParams internal _lockLpParams;
+    YieldFarmParams internal _yieldFarmParams;
     bool public refunds;
 
     mapping(uint8 categoryIndex => uint256) public minted;
@@ -80,7 +87,8 @@ contract Nft is ERC721AUpgradeable {
         uint32 maxMintSupply_,
         bool refunds_,
         VestingParams calldata vestingParams_,
-        LockLpParams calldata lockLpParams_
+        LockLpParams calldata lockLpParams_,
+        YieldFarmParams calldata yieldFarmParams_
     ) public initializerERC721A {
         // check that there is less than 256 categories
         if (categories_.length > 256) revert TooManyCategories();
@@ -109,6 +117,9 @@ contract Nft is ERC721AUpgradeable {
 
         // set the lock lp params
         _lockLpParams = lockLpParams_;
+
+        // set the yield farm params
+        _yieldFarmParams = yieldFarmParams_;
     }
 
     function mint(uint64 amount, uint8 categoryIndex, bytes32[] calldata proof) public payable {
@@ -233,20 +244,11 @@ contract Nft is ERC721AUpgradeable {
 
         // 👷 Effects 👷
 
-        // only mint at most 100 NFTs to this contract, the rest will be minted directly to the pair.
-        uint256 amountToMint = min(amount, 100);
-        uint256[] memory tokenIds = new uint256[](amountToMint);
-
-        // fix stack too deep
-        {
-            uint256 nextTokenId = _nextTokenId();
-            for (uint256 i = 0; i < amountToMint; i++) {
-                tokenIds[i] = nextTokenId + i;
-            }
+        uint256[] memory tokenIds = new uint256[](amount);
+        uint256 nextTokenId = _nextTokenId();
+        for (uint256 i = 0; i < amount; i++) {
+            tokenIds[i] = nextTokenId + i;
         }
-
-        // mint the tokens
-        _mint(address(this), amountToMint);
 
         // 🛠️ Interactions 🛠️
 
@@ -256,12 +258,9 @@ contract Nft is ERC721AUpgradeable {
             pair = caviar.create(address(this), address(0), bytes32(0));
         }
 
-        if (amountToMint < amount) {
-            // if the amount is greater than 100 then mint the remaining tokens directly to the pair.
-            // this is done to take advantage of ERC721A's amortization of the gas cost of minting.
-            // we save a lot of gas by doing this.
-            _mint(address(pair), amount - amountToMint); // <-- 👷 Late effect (safe)
-        }
+        // mint the tokens directly to the pair. this is done to take advantage of ERC721A's
+        // amortization of the gas cost of minting. we save a lot of gas by doing this.
+        _mint(address(pair), amount); // <-- 👷 Late effect (safe)
 
         // approve the pair to transfer the NFTs
         this.setApprovalForAll(address(pair), true);
@@ -273,6 +272,46 @@ contract Nft is ERC721AUpgradeable {
         pair.nftAdd{value: baseTokenAmount}(
             baseTokenAmount, tokenIds, 0, 0, type(uint256).max, 0, new bytes32[][](0), messages
         );
+    }
+
+    function seedYieldFarm(uint256 amount, StolenNftFilterOracle.Message[] calldata messages) public {
+        // ✅ Checks ✅
+
+        // check that the mint has ended
+        if (mintEndTimestamp == 0) revert MintNotFinished();
+
+        // check that locked lp has ended (if locked lp is disabled then 0 == 0 here)
+        if (lockedLpSupply != _lockLpParams.amount) revert LpStillBeingLocked();
+
+        // check that yield farm is enabled
+        if (_yieldFarmParams.amount == 0) revert YieldFarmNotEnabled();
+
+        // 👷 Effects 👷
+
+        uint256[] memory tokenIds = new uint256[](amount);
+        uint256 nextTokenId = _nextTokenId();
+        for (uint256 i = 0; i < amount; i++) {
+            tokenIds[i] = nextTokenId + i;
+        }
+
+        // 🛠️ Interactions 🛠️
+
+        // if the caviar pair does not exist then create it
+        Pair pair = Pair(caviar.pairs(address(this), address(0), bytes32(0)));
+        if (address(pair) == address(0)) {
+            pair = caviar.create(address(this), address(0), bytes32(0));
+        }
+
+        // mint the nfts to caviar
+        _mint(address(pair), amount);
+
+        // wrap the nfts
+        bytes32[][] memory proofs = new bytes32[][](0);
+        pair.wrap(tokenIds, proofs, messages);
+
+        // if the yield farm doesn't exist then create the yield farm
+
+        // distribute the rewards to the yield farm via notifyRewardAmount
     }
 
     function vested() public view returns (uint256) {
@@ -326,6 +365,17 @@ contract Nft is ERC721AUpgradeable {
     }
 
     function transferFrom(address from, address to, uint256 tokenId) public payable override {
+        // Skip doing any state changes if the caviar pair attempts to transfer tokens from this contract to the pair.
+        // We don't need to do the transfer because in the seedYieldFarm and lockLp functions we mint the NFTs directly
+        //  to the caviar pair already.
+        if (from == address(this)) {
+            address pair = caviar.pairs(address(this), address(0), bytes32(0));
+
+            if (to == pair && msg.sender == pair) {
+                return;
+            }
+        }
+
         // disable all transfers to the caviar pair until the lp has finished locking.
         // if lp locking is not enabled then this will always be false (0 < 0 == false).
         if (lockedLpSupply < _lockLpParams.amount && from != address(this)) {

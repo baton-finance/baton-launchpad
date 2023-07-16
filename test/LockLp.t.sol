@@ -25,11 +25,13 @@ contract LockLpTest is Test {
 //     StolenNftFilterOracle oracle = new StolenNftFilterOracle();
 //     caviar = new Caviar(address(oracle));
 
-//     // deploy the nft implementation
-//     nftImplementation = new Nft(address(caviar));
-
 //     // deploy the launchpad
-//     launchpad = new BatonLaunchpad(address(nftImplementation));
+//     launchpad = new BatonLaunchpad(0);
+
+//     // deploy the nft implementation
+//     nftImplementation = new Nft(address(caviar), address(launchpad));
+
+//     launchpad.setNftImplementation(address(nftImplementation));
 
 //     // create the nft
 //     // set the categories
@@ -65,11 +67,12 @@ contract LockLpTest is Test {
 //     pair = caviar.create(address(nft), address(0), bytes32(0));
 
 //     // get the expected lp tokens
-//     uint256 expectedLpTokens = pair.addQuote(nft.lockLpParams().price * 100, 100 * 1e18, 0);
+//     uint256 amountToLock = nft.lockLpParams().amount;
+//     uint256 expectedLpTokens = pair.addQuote(nft.lockLpParams().price * amountToLock, amountToLock * 1e18, 0);
 
 //     // lock the lp
 //     StolenNftFilterOracle.Message[] memory messages = new StolenNftFilterOracle.Message[](0);
-//     nft.lockLp(nft.lockLpParams().amount, messages);
+//     nft.lockLp(uint32(amountToLock), messages);
 
 //     // assert that the lp tokens were sent to the NFT
 //     assertEq(pair.lpToken().balanceOf(address(nft)), expectedLpTokens);
@@ -262,5 +265,23 @@ contract LockLpTest is Test {
 //             Nft.LockLpParams({amount: 101, price: 1 ether})
 //         )
 //     );
+// }
+
+// function test_FractionalTokensAreInPool() public {
+//     vm.startPrank(babe);
+
+//     // mint the nft
+//     uint256 amount = 3000;
+//     nft.mint{value: amount * nft.categories(0).price}(uint64(amount), 0, new bytes32[](0));
+
+//     pair = caviar.create(address(nft), address(0), bytes32(0));
+
+//     // lock the lp
+//     StolenNftFilterOracle.Message[] memory messages = new StolenNftFilterOracle.Message[](0);
+//     uint32 amountToLock = 1000;
+//     nft.lockLp(amountToLock, messages);
+
+//     // assert that the locked lp supply was incremented
+//     assertEq(pair.balanceOf(address(pair)), 1000e18);
 // }
 }
