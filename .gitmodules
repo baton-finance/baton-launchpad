@@ -10,3 +10,6 @@
 [submodule "lib/caviar"]
 	path = lib/caviar
 	url = https://github.com/outdoteth/caviar
+[submodule "lib/baton-contracts"]
+	path = lib/baton-contracts
+	url = https://github.com/baton-finance/baton-contracts
