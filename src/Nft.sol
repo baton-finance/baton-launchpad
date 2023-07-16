@@ -7,6 +7,8 @@ import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 import {FixedPointMathLib} from "solady/utils/FixedPointMathLib.sol";
 import {Caviar, StolenNftFilterOracle} from "caviar/Caviar.sol";
 import {Pair} from "caviar/Pair.sol";
+import {BatonFactory} from "baton-contracts/BatonFactory.sol";
+
 import {BatonLaunchpad} from "./BatonLaunchpad.sol";
 
 contract Nft is ERC721AUpgradeable {
@@ -367,7 +369,7 @@ contract Nft is ERC721AUpgradeable {
     function transferFrom(address from, address to, uint256 tokenId) public payable override {
         // Skip doing any state changes if the caviar pair attempts to transfer tokens from this contract to the pair.
         // We don't need to do the transfer because in the seedYieldFarm and lockLp functions we mint the NFTs directly
-        //  to the caviar pair already.
+        // to the caviar pair already.
         if (from == address(this)) {
             address pair = caviar.pairs(address(this), address(0), bytes32(0));
 
