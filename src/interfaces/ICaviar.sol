@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.19;
 
 interface ICaviar {
     function pairs(address nft, address baseToken, bytes32 merkleRoot) external view returns (address);

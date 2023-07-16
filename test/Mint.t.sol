@@ -1,24 +1,33 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.19;
 
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
+import {Caviar, StolenNftFilterOracle} from "caviar/Caviar.sol";
 import "../src/BatonLaunchpad.sol";
 
 contract CreateTest is Test {
     address babe = address(0xbabe);
     BatonLaunchpad launchpad;
     Nft nftImplementation;
+    Caviar caviar;
 
     function setUp() public {
-        // // deploy the nft implementation
-        // nftImplementation = new Nft();
+        // deploy caviar
+        StolenNftFilterOracle oracle = new StolenNftFilterOracle();
+        caviar = new Caviar(address(oracle));
 
-        // // deploy the launchpad
-        // launchpad = new BatonLaunchpad(address(nftImplementation));
+        // deploy the launchpad
+        launchpad = new BatonLaunchpad(0);
 
-        // // deal some eth to babe
-        // deal(babe, 100 ether);
+        // deploy the nft implementation
+        nftImplementation = new Nft(address(caviar), address(launchpad));
+
+        // set the nft implementation on the launchpad
+        launchpad.setNftImplementation(address(nftImplementation));
+
+        // deal some eth to babe
+        deal(babe, 100 ether);
     }
 
     function generateMerkleRoot() public returns (bytes32) {
@@ -61,26 +70,70 @@ contract CreateTest is Test {
         return string(hex_buffer);
     }
 
-    // TODO: come back and fix these tests once the create signature on baton launchpad has been finalized
-    // function test_SendsNftsToMinter() public {
-    //     // set the categories
-    //     Nft.Category[] memory categories = new Nft.Category[](1);
-    //     categories[0] = Nft.Category({price: 1 ether, supply: 100, merkleRoot: bytes32(0)});
+    function test_SendsFeeToLaunchpad() public {
+        // set the fee rate
+        launchpad.setFeeRate(0.1e18);
 
-    //     // create the nft
-    //     Nft nft = Nft(launchpad.create("name", "symbol", categories, bytes32(0)));
+        // set the categories
+        Nft.Category[] memory categories = new Nft.Category[](1);
+        categories[0] = Nft.Category({price: 1 ether, supply: 100, merkleRoot: bytes32(0)});
 
-    //     // mint the nft
-    //     vm.startPrank(babe);
-    //     uint256 amount = 5;
-    //     nft.mint{value: 1 ether * amount}(uint64(amount), 0, new bytes32[](0));
+        // create the nft
+        Nft nft = Nft(
+            launchpad.create(
+                bytes32(0),
+                "name",
+                "symbol",
+                categories,
+                100,
+                true,
+                Nft.VestingParams({receiver: address(0), duration: 0, amount: 0}),
+                Nft.LockLpParams({amount: 0, price: 0 ether})
+            )
+        );
 
-    //     // check that the minter owns the 5 nfts
-    //     assertEq(nft.balanceOf(babe), amount);
-    //     for (uint256 i = 0; i < amount; i++) {
-    //         assertEq(nft.ownerOf(i), address(babe));
-    //     }
-    // }
+        // mint the nft
+        uint256 balanceBefore = address(launchpad).balance;
+        uint256 amount = 5;
+        uint256 expectedFee = (amount * 1 ether * 0.1e18) / 1e18;
+
+        vm.startPrank(babe);
+        nft.mint{value: 1 ether * amount + expectedFee}(uint64(amount), 0, new bytes32[](0));
+
+        // assert that the launchpad received the fee
+        assertEq(address(launchpad).balance - balanceBefore, expectedFee);
+    }
+
+    function test_SendsNftsToMinter() public {
+        // set the categories
+        Nft.Category[] memory categories = new Nft.Category[](1);
+        categories[0] = Nft.Category({price: 1 ether, supply: 100, merkleRoot: bytes32(0)});
+
+        // create the nft
+        Nft nft = Nft(
+            launchpad.create(
+                bytes32(0),
+                "name",
+                "symbol",
+                categories,
+                100,
+                true,
+                Nft.VestingParams({receiver: address(0), duration: 0, amount: 0}),
+                Nft.LockLpParams({amount: 0, price: 0 ether})
+            )
+        );
+
+        // mint the nft
+        vm.startPrank(babe);
+        uint256 amount = 5;
+        nft.mint{value: 1 ether * amount}(uint64(amount), 0, new bytes32[](0));
+
+        // check that the minter owns the 5 nfts
+        assertEq(nft.balanceOf(babe), amount);
+        for (uint256 i = 0; i < amount; i++) {
+            assertEq(nft.ownerOf(i), address(babe));
+        }
+    }
 
     // function test_UpdatesMintedAmount() public {
     //     // set the categories

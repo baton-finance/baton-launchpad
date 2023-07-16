@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.19;
 
 import {LibClone} from "solady/utils/LibClone.sol";
 import {Ownable} from "solady/auth/Ownable.sol";
@@ -9,11 +9,14 @@ contract BatonLaunchpad is Ownable {
     using LibClone for address;
 
     address public nftImplementation;
+    uint256 public feeRate;
 
-    constructor(address _nftImplementation) {
+    constructor(uint256 _feeRate) {
         _initializeOwner(msg.sender);
-        setNftImplementation(_nftImplementation);
+        feeRate = _feeRate;
     }
+
+    receive() external payable {}
 
     function create(
         bytes32 salt,
@@ -34,5 +37,9 @@ contract BatonLaunchpad is Ownable {
 
     function setNftImplementation(address _nftImplementation) public onlyOwner {
         nftImplementation = _nftImplementation;
+    }
+
+    function setFeeRate(uint256 _feeRate) public onlyOwner {
+        feeRate = _feeRate;
     }
 }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.19;
 
 import {ERC721AUpgradeable} from "ERC721A-Upgradeable/ERC721AUpgradeable.sol";
 import {MerkleProofLib} from "solady/utils/MerkleProofLib.sol";
@@ -7,6 +7,7 @@ import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 import {FixedPointMathLib} from "solady/utils/FixedPointMathLib.sol";
 import {Caviar, StolenNftFilterOracle} from "caviar/Caviar.sol";
 import {Pair} from "caviar/Pair.sol";
+import {BatonLaunchpad} from "./BatonLaunchpad.sol";
 
 contract Nft is ERC721AUpgradeable {
     using SafeTransferLib for address;
@@ -51,12 +52,13 @@ contract Nft is ERC721AUpgradeable {
 
     // immutables
     Caviar public immutable caviar;
+    BatonLaunchpad public immutable batonLaunchpad;
 
     // feature parameters
     Category[] internal _categories;
-    VestingParams public _vestingParams;
+    VestingParams internal _vestingParams;
+    LockLpParams internal _lockLpParams;
     bool public refunds;
-    LockLpParams public _lockLpParams;
 
     mapping(uint8 categoryIndex => uint256) public minted;
     mapping(uint256 tokenId => uint256) public pricePaid;
@@ -66,8 +68,9 @@ contract Nft is ERC721AUpgradeable {
     uint32 public maxMintSupply;
     uint32 public lockedLpSupply;
 
-    constructor(address caviar_) {
+    constructor(address caviar_, address batonLaunchpad_) {
         caviar = Caviar(caviar_);
+        batonLaunchpad = BatonLaunchpad(payable(batonLaunchpad_));
     }
 
     function initialize(
@@ -116,8 +119,11 @@ contract Nft is ERC721AUpgradeable {
         // check that input amount of nfts to mint is not zero
         if (amount == 0) revert InvalidNftAmount();
 
-        // check that the price is correct
-        if (msg.value != category.price * amount) revert InvalidEthAmount();
+        uint256 feeRate = batonLaunchpad.feeRate(); // <-- 🛠️ Early interaction (safe)
+        uint256 fee = category.price * amount * feeRate / 1e18;
+
+        // check that enough eth was sent
+        if (msg.value != category.price * amount + fee) revert InvalidEthAmount();
 
         // check that there is enough supply
         if (minted[categoryIndex] + amount > category.supply || totalSupply() + amount > maxMintSupply) {
@@ -151,6 +157,13 @@ contract Nft is ERC721AUpgradeable {
         if ((_vestingParams.receiver != address(0) || _lockLpParams.amount > 0) && totalSupply() == maxMintSupply) {
             // set the mint end timestamp if vesting or locked lp is enabled and mint is complete
             mintEndTimestamp = uint64(block.timestamp);
+        }
+
+        // 🛠️ Interactions 🛠️
+
+        if (fee > 0) {
+            // transfer the fee
+            address(batonLaunchpad).safeTransferETH(fee);
         }
     }
 
