@@ -7,6 +7,7 @@ import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 import {FixedPointMathLib} from "solady/utils/FixedPointMathLib.sol";
 import {Caviar, StolenNftFilterOracle} from "caviar/Caviar.sol";
 import {Pair} from "caviar/Pair.sol";
+import {BatonFarm} from "baton-contracts/BatonFarm.sol";
 import {BatonFactory} from "baton-contracts/BatonFactory.sol";
 
 import {BatonLaunchpad} from "./BatonLaunchpad.sol";
@@ -20,7 +21,6 @@ contract Nft is ERC721AUpgradeable {
     error InsufficientSupply();
     error InvalidMerkleProof();
     error RefundsNotEnabled();
-    error Unauthorized();
     error MintNotFinished();
     error InsufficientVestedAmount();
     error CategoriesNotSortedByPrice();
@@ -30,6 +30,8 @@ contract Nft is ERC721AUpgradeable {
     error LpStillBeingLocked();
     error InvalidNftAmount();
     error YieldFarmNotEnabled();
+    error InsufficientYieldFarmAmount();
+    error Unauthorized();
 
     struct Category {
         uint128 price;
@@ -61,6 +63,7 @@ contract Nft is ERC721AUpgradeable {
     // immutables
     Caviar public immutable caviar;
     BatonLaunchpad public immutable batonLaunchpad;
+    BatonFactory public immutable batonFactory;
 
     // feature parameters
     Category[] internal _categories;
@@ -76,10 +79,13 @@ contract Nft is ERC721AUpgradeable {
     uint32 public totalVestClaimed;
     uint32 public maxMintSupply;
     uint32 public lockedLpSupply;
+    BatonFarm public yieldFarm;
+    uint32 public seededYieldFarmSupply;
 
-    constructor(address caviar_, address batonLaunchpad_) {
+    constructor(address caviar_, address batonLaunchpad_, address batonFactory_) {
         caviar = Caviar(caviar_);
         batonLaunchpad = BatonLaunchpad(payable(batonLaunchpad_));
+        batonFactory = BatonFactory(payable(batonFactory_));
     }
 
     function initialize(
@@ -276,7 +282,7 @@ contract Nft is ERC721AUpgradeable {
         );
     }
 
-    function seedYieldFarm(uint256 amount, StolenNftFilterOracle.Message[] calldata messages) public {
+    function seedYieldFarm(uint32 amount, StolenNftFilterOracle.Message[] calldata messages) public {
         // ✅ Checks ✅
 
         // check that the mint has ended
@@ -288,13 +294,9 @@ contract Nft is ERC721AUpgradeable {
         // check that yield farm is enabled
         if (_yieldFarmParams.amount == 0) revert YieldFarmNotEnabled();
 
-        // 👷 Effects 👷
-
-        uint256[] memory tokenIds = new uint256[](amount);
-        uint256 nextTokenId = _nextTokenId();
-        for (uint256 i = 0; i < amount; i++) {
-            tokenIds[i] = nextTokenId + i;
-        }
+        // check that there is enough available
+        seededYieldFarmSupply += amount; // <-- 👷 Early effect (safe)
+        if (seededYieldFarmSupply > _yieldFarmParams.amount) revert InsufficientYieldFarmAmount();
 
         // 🛠️ Interactions 🛠️
 
@@ -305,15 +307,38 @@ contract Nft is ERC721AUpgradeable {
         }
 
         // mint the nfts to caviar
-        _mint(address(pair), amount);
+        _mint(address(pair), amount); // <-- 👷 Late effect (safe)
 
         // wrap the nfts
+        uint256[] memory tokenIds = new uint256[](amount);
+        uint256 nextTokenId = _nextTokenId();
+        for (uint256 i = 0; i < amount; i++) {
+            tokenIds[i] = nextTokenId + i;
+        }
         bytes32[][] memory proofs = new bytes32[][](0);
-        pair.wrap(tokenIds, proofs, messages);
+        uint256 rewardTokenAmount = pair.wrap(tokenIds, proofs, messages);
 
-        // if the yield farm doesn't exist then create the yield farm
+        // if the yield farm does not exist then create it
+        if (address(yieldFarm) == address(0)) {
+            // approve the pair to transfer the tokens
+            pair.approve(address(yieldFarm), type(uint256).max);
 
-        // distribute the rewards to the yield farm via notifyRewardAmount
+            // create the yield farm and seed with some rewards
+            yieldFarm = BatonFarm(
+                payable(
+                    batonFactory.createFarmFromExistingPairERC20({
+                        _owner: address(this),
+                        _rewardsToken: address(pair),
+                        _rewardAmount: rewardTokenAmount,
+                        _pairAddress: address(pair),
+                        _rewardsDuration: _yieldFarmParams.duration
+                    })
+                )
+            );
+        } else {
+            // add the tokens to the yield farm
+            yieldFarm.notifyRewardAmount(rewardTokenAmount);
+        }
     }
 
     function vested() public view returns (uint256) {
