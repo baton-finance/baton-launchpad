@@ -278,7 +278,11 @@ contract Nft is ERC721AUpgradeable, Ownable {
         // deposit liquidity into the pair
         // we can ignore the min lp token and price bounds as we are the only ones that can deposit into the pair due
         // to the transferFrom lock which prevents anyone transferring NFTs to the pair until the liquidity is locked.
-        uint256[] memory tokenIds = new uint256[](amount); // todo: put the correct token ids here so that reservoir can track them
+        uint256[] memory tokenIds = new uint256[](amount);
+        uint256 nextTokenId = _nextTokenId();
+        for (uint256 i = nextTokenId; i < amount + nextTokenId; i++) {
+            tokenIds[i] = i;
+        }
         uint256 baseTokenAmount = _lockLpParams.price * amount;
         pair.nftAdd{value: baseTokenAmount}(
             baseTokenAmount, tokenIds, 0, 0, type(uint256).max, 0, new bytes32[][](0), messages
@@ -314,6 +318,10 @@ contract Nft is ERC721AUpgradeable, Ownable {
 
         // wrap the nfts and get fractional tokens
         uint256[] memory tokenIds = new uint256[](amount);
+        uint256 nextTokenId = _nextTokenId();
+        for (uint256 i = nextTokenId; i < amount + nextTokenId; i++) {
+            tokenIds[i] = i;
+        }
         bytes32[][] memory proofs = new bytes32[][](0);
         uint256 rewardTokenAmount = pair.wrap(tokenIds, proofs, messages);
 
