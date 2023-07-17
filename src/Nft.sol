@@ -5,6 +5,7 @@ import {ERC721AUpgradeable} from "ERC721A-Upgradeable/ERC721AUpgradeable.sol";
 import {MerkleProofLib} from "solady/utils/MerkleProofLib.sol";
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 import {FixedPointMathLib} from "solady/utils/FixedPointMathLib.sol";
+import {Ownable} from "solady/auth/Ownable.sol";
 import {Caviar, StolenNftFilterOracle} from "caviar/Caviar.sol";
 import {Pair} from "caviar/Pair.sol";
 import {BatonFarm} from "baton-contracts/BatonFarm.sol";
@@ -12,7 +13,7 @@ import {BatonFactory} from "baton-contracts/BatonFactory.sol";
 
 import {BatonLaunchpad} from "./BatonLaunchpad.sol";
 
-contract Nft is ERC721AUpgradeable {
+contract Nft is ERC721AUpgradeable, Ownable {
     using SafeTransferLib for address;
 
     error TooManyCategories();
@@ -22,6 +23,7 @@ contract Nft is ERC721AUpgradeable {
     error InvalidMerkleProof();
     error RefundsNotEnabled();
     error MintNotFinished();
+    error MintFinished();
     error InsufficientVestedAmount();
     error CategoriesNotSortedByPrice();
     error InsufficientEthRaisedForLockedLp();
@@ -31,7 +33,7 @@ contract Nft is ERC721AUpgradeable {
     error InvalidNftAmount();
     error YieldFarmNotEnabled();
     error InsufficientYieldFarmAmount();
-    error Unauthorized();
+    error YieldFarmStillBeingSeeded();
 
     struct Category {
         uint128 price;
@@ -91,6 +93,7 @@ contract Nft is ERC721AUpgradeable {
     function initialize(
         string calldata name_,
         string calldata symbol_,
+        address owner,
         Category[] calldata categories_,
         uint32 maxMintSupply_,
         bool refunds_,
@@ -108,6 +111,9 @@ contract Nft is ERC721AUpgradeable {
 
         // initialize the ERC721AUpgradeable
         __ERC721A_init(name_, symbol_);
+
+        // initialize the owner
+        _initializeOwner(owner);
 
         // push all categories
         for (uint256 i = 0; i < categories_.length; i++) {
@@ -138,14 +144,14 @@ contract Nft is ERC721AUpgradeable {
         // check that input amount of nfts to mint is not zero
         if (amount == 0) revert InvalidNftAmount();
 
+        // check that enough eth was sent
         uint256 feeRate = batonLaunchpad.feeRate(); // <-- 🛠️ Early interaction (safe)
         uint256 fee = category.price * amount * feeRate / 1e18;
-
-        // check that enough eth was sent
         if (msg.value != category.price * amount + fee) revert InvalidEthAmount();
 
         // check that there is enough supply
-        if (minted[categoryIndex] + amount > category.supply || totalSupply() + amount > maxMintSupply) {
+        minted[categoryIndex] += amount; // <-- 👷 Early effect (safe)
+        if (minted[categoryIndex] > category.supply || totalSupply() + amount > maxMintSupply) {
             revert InsufficientSupply();
         }
 
@@ -161,11 +167,8 @@ contract Nft is ERC721AUpgradeable {
 
         // 👷 Effects 👷
 
-        // update the minted amount
-        minted[categoryIndex] += amount;
-
         if (refunds) {
-            // update the account info
+            // track the total minted and available refunds for each account if refunds are enabled
             _accounts[msg.sender].totalMinted += amount;
             _accounts[msg.sender].availableRefund += category.price * amount;
         }
@@ -173,8 +176,8 @@ contract Nft is ERC721AUpgradeable {
         // mint the tokens
         _safeMint(msg.sender, amount);
 
-        if ((_vestingParams.receiver != address(0) || _lockLpParams.amount > 0) && totalSupply() == maxMintSupply) {
-            // set the mint end timestamp if vesting or locked lp is enabled and mint is complete
+        if (totalSupply() == maxMintSupply) {
+            // set the mint end timestamp if mint is complete
             mintEndTimestamp = uint64(block.timestamp);
         }
 
@@ -191,6 +194,9 @@ contract Nft is ERC721AUpgradeable {
 
         // check that refunds are enabled
         if (!refunds) revert RefundsNotEnabled();
+
+        // check that the mint has not finished
+        if (mintEndTimestamp != 0) revert MintFinished();
 
         // 👷 Effects 👷
 
@@ -250,14 +256,6 @@ contract Nft is ERC721AUpgradeable {
         // check that there is enough available
         if (lockedLpSupply > _lockLpParams.amount) revert InsufficientLpAmount();
 
-        // 👷 Effects 👷
-
-        uint256[] memory tokenIds = new uint256[](amount);
-        uint256 nextTokenId = _nextTokenId();
-        for (uint256 i = 0; i < amount; i++) {
-            tokenIds[i] = nextTokenId + i;
-        }
-
         // 🛠️ Interactions 🛠️
 
         // if the caviar pair does not exist then create it
@@ -276,7 +274,8 @@ contract Nft is ERC721AUpgradeable {
         // deposit liquidity into the pair
         // we can ignore the min lp token and price bounds as we are the only ones that can deposit into the pair due
         // to the transferFrom lock which prevents anyone transferring NFTs to the pair until the liquidity is locked.
-        uint256 baseTokenAmount = _lockLpParams.price * tokenIds.length;
+        uint256[] memory tokenIds = new uint256[](amount);
+        uint256 baseTokenAmount = _lockLpParams.price * amount;
         pair.nftAdd{value: baseTokenAmount}(
             baseTokenAmount, tokenIds, 0, 0, type(uint256).max, 0, new bytes32[][](0), messages
         );
@@ -285,16 +284,16 @@ contract Nft is ERC721AUpgradeable {
     function seedYieldFarm(uint32 amount, StolenNftFilterOracle.Message[] calldata messages) public {
         // ✅ Checks ✅
 
+        // check that yield farm is enabled
+        if (_yieldFarmParams.amount == 0) revert YieldFarmNotEnabled();
+
         // check that the mint has ended
         if (mintEndTimestamp == 0) revert MintNotFinished();
 
         // check that locked lp has ended (if locked lp is disabled then 0 == 0 here)
         if (lockedLpSupply != _lockLpParams.amount) revert LpStillBeingLocked();
 
-        // check that yield farm is enabled
-        if (_yieldFarmParams.amount == 0) revert YieldFarmNotEnabled();
-
-        // check that there is enough available
+        // check that there are enough nfts available to seed the farm
         seededYieldFarmSupply += amount; // <-- 👷 Early effect (safe)
         if (seededYieldFarmSupply > _yieldFarmParams.amount) revert InsufficientYieldFarmAmount();
 
@@ -309,19 +308,15 @@ contract Nft is ERC721AUpgradeable {
         // mint the nfts to caviar
         _mint(address(pair), amount); // <-- 👷 Late effect (safe)
 
-        // wrap the nfts
+        // wrap the nfts and get fractional tokens
         uint256[] memory tokenIds = new uint256[](amount);
-        uint256 nextTokenId = _nextTokenId();
-        for (uint256 i = 0; i < amount; i++) {
-            tokenIds[i] = nextTokenId + i;
-        }
         bytes32[][] memory proofs = new bytes32[][](0);
         uint256 rewardTokenAmount = pair.wrap(tokenIds, proofs, messages);
 
         // if the yield farm does not exist then create it
         if (address(yieldFarm) == address(0)) {
-            // approve the pair to transfer the tokens
-            pair.approve(address(yieldFarm), type(uint256).max);
+            // approve the baton factory to transfer the tokens
+            pair.approve(address(batonFactory), type(uint256).max);
 
             // create the yield farm and seed with some rewards
             yieldFarm = BatonFarm(
@@ -335,10 +330,29 @@ contract Nft is ERC721AUpgradeable {
                     })
                 )
             );
+
+            // approve the yield farm to transfer the tokens
+            pair.approve(address(yieldFarm), type(uint256).max);
         } else {
             // add the tokens to the yield farm
             yieldFarm.notifyRewardAmount(rewardTokenAmount);
         }
+    }
+
+    function withdraw() public onlyOwner {
+        // ✅ Checks ✅
+
+        // check that the mint has ended
+        if (mintEndTimestamp == 0) revert MintNotFinished();
+
+        // check that locked lp has been fully locked (if locked lp is disabled then 0 == 0 here)
+        if (lockedLpSupply != _lockLpParams.amount) revert LpStillBeingLocked();
+
+        // check if yield farm has finished seeding (if yield farm is disabled then 0 == 0 here)
+        if (seededYieldFarmSupply != _yieldFarmParams.amount) revert YieldFarmStillBeingSeeded();
+
+        // send the remaining eth in the contract to the owner
+        owner().safeTransferETH(address(this).balance);
     }
 
     function vested() public view returns (uint256) {
@@ -367,6 +381,10 @@ contract Nft is ERC721AUpgradeable {
 
     function lockLpParams() public view returns (LockLpParams memory) {
         return _lockLpParams;
+    }
+
+    function yieldFarmParams() public view returns (YieldFarmParams memory) {
+        return _yieldFarmParams;
     }
 
     function min(uint256 a, uint256 b) internal pure returns (uint256) {
