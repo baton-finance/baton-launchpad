@@ -8,6 +8,7 @@ import {FixedPointMathLib} from "solady/utils/FixedPointMathLib.sol";
 import {Ownable} from "solady/auth/Ownable.sol";
 import {Caviar, StolenNftFilterOracle} from "caviar/Caviar.sol";
 import {Pair} from "caviar/Pair.sol";
+import {LpToken} from "caviar/LpToken.sol";
 import {BatonFarm} from "baton-contracts/BatonFarm.sol";
 import {BatonFactory} from "baton-contracts/BatonFactory.sol";
 
@@ -34,6 +35,8 @@ contract Nft is ERC721AUpgradeable, Ownable {
     error YieldFarmNotEnabled();
     error InsufficientYieldFarmAmount();
     error YieldFarmStillBeingSeeded();
+    error MigrationNotInitiated();
+    error MigrationTargetNotMatched();
 
     struct Category {
         uint128 price;
@@ -83,6 +86,7 @@ contract Nft is ERC721AUpgradeable, Ownable {
     uint32 public lockedLpSupply;
     BatonFarm public yieldFarm;
     uint32 public seededYieldFarmSupply;
+    address public lockedLpMigrationTarget;
 
     constructor(address caviar_, address batonLaunchpad_, address batonFactory_) {
         caviar = Caviar(caviar_);
@@ -274,7 +278,7 @@ contract Nft is ERC721AUpgradeable, Ownable {
         // deposit liquidity into the pair
         // we can ignore the min lp token and price bounds as we are the only ones that can deposit into the pair due
         // to the transferFrom lock which prevents anyone transferring NFTs to the pair until the liquidity is locked.
-        uint256[] memory tokenIds = new uint256[](amount);
+        uint256[] memory tokenIds = new uint256[](amount); // todo: put the correct token ids here so that reservoir can track them
         uint256 baseTokenAmount = _lockLpParams.price * amount;
         pair.nftAdd{value: baseTokenAmount}(
             baseTokenAmount, tokenIds, 0, 0, type(uint256).max, 0, new bytes32[][](0), messages
@@ -353,6 +357,30 @@ contract Nft is ERC721AUpgradeable, Ownable {
 
         // send the remaining eth in the contract to the owner
         owner().safeTransferETH(address(this).balance);
+    }
+
+    function initiateLockedLpMigration(address target) public onlyOwner {
+        // set the destination address for the lp tokens
+        lockedLpMigrationTarget = target;
+    }
+
+    function migrateLockedLp(address target) public {
+        // ✅ Checks ✅
+
+        // check that the caller is the baton owner
+        if (msg.sender != batonLaunchpad.owner()) revert Unauthorized();
+
+        // check that the migration target has been set by the nft owner
+        if (lockedLpMigrationTarget == address(0)) revert MigrationNotInitiated();
+
+        // check that the migration target matches the target set by the nft owner (this check prevents frontrunning)
+        if (target != lockedLpMigrationTarget) revert MigrationTargetNotMatched();
+
+        // 🛠️ Interactions 🛠️
+
+        // transfer the lp tokens to the migration target
+        LpToken lpToken = Pair(caviar.pairs(address(this), address(0), bytes32(0))).lpToken();
+        lpToken.transfer(lockedLpMigrationTarget, lpToken.balanceOf(address(this)));
     }
 
     function vested() public view returns (uint256) {
