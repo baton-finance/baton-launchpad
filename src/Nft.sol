@@ -38,6 +38,15 @@ contract Nft is ERC721AUpgradeable, Ownable {
     error MigrationNotInitiated();
     error MigrationTargetNotMatched();
 
+    event Mint(address indexed account, uint256 indexed amount, uint256 indexed price);
+    event Refund(address indexed account, uint256 indexed nftAmount, uint256 indexed ethAmount);
+    event Vest(uint256 indexed amount);
+    event LockLp(address indexed account, uint256 indexed amount);
+    event SeedYieldFarm(address indexed account, uint256 indexed amount);
+    event Withdraw(uint256 indexed ethAmount);
+    event InitiateLockedLpMigration(address indexed target);
+    event MigrateLockedLp(address indexed target, uint256 indexed lpTokenAmount);
+
     struct Category {
         uint128 price;
         uint128 supply;
@@ -192,6 +201,8 @@ contract Nft is ERC721AUpgradeable, Ownable {
             // transfer the fee
             address(batonLaunchpad).safeTransferETH(fee);
         }
+
+        emit Mint(msg.sender, amount, category.price);
     }
 
     function refund(uint256[] calldata tokenIds) public {
@@ -222,6 +233,8 @@ contract Nft is ERC721AUpgradeable, Ownable {
 
         // send the refund
         msg.sender.safeTransferETH(totalRefundAmount);
+
+        emit Refund(msg.sender, tokenIds.length, totalRefundAmount);
     }
 
     function vest(uint256 amount) public {
@@ -244,6 +257,8 @@ contract Nft is ERC721AUpgradeable, Ownable {
 
         // mint the nfts
         _safeMint(msg.sender, amount);
+
+        emit Vest(amount);
     }
 
     function lockLp(uint32 amount, StolenNftFilterOracle.Message[] calldata messages) public {
@@ -288,6 +303,8 @@ contract Nft is ERC721AUpgradeable, Ownable {
         pair.nftAdd{value: baseTokenAmount}(
             baseTokenAmount, tokenIds, 0, 0, type(uint256).max, 0, new bytes32[][](0), messages
         );
+
+        emit LockLp(msg.sender, amount);
     }
 
     function seedYieldFarm(uint32 amount, StolenNftFilterOracle.Message[] calldata messages) public {
@@ -350,6 +367,8 @@ contract Nft is ERC721AUpgradeable, Ownable {
             // add the tokens to the yield farm
             yieldFarm.notifyRewardAmount(rewardTokenAmount);
         }
+
+        emit SeedYieldFarm(msg.sender, amount);
     }
 
     function withdraw() public onlyOwner {
@@ -365,12 +384,17 @@ contract Nft is ERC721AUpgradeable, Ownable {
         if (seededYieldFarmSupply != _yieldFarmParams.amount) revert YieldFarmStillBeingSeeded();
 
         // send the remaining eth in the contract to the owner
-        owner().safeTransferETH(address(this).balance);
+        uint256 ethAmount = address(this).balance;
+        owner().safeTransferETH(ethAmount);
+
+        emit Withdraw(ethAmount);
     }
 
     function initiateLockedLpMigration(address target) public onlyOwner {
         // set the destination address for the lp tokens
         lockedLpMigrationTarget = target;
+
+        emit InitiateLockedLpMigration(target);
     }
 
     function migrateLockedLp(address target) public {
@@ -389,7 +413,10 @@ contract Nft is ERC721AUpgradeable, Ownable {
 
         // transfer the lp tokens to the migration target
         LpToken lpToken = Pair(caviar.pairs(address(this), address(0), bytes32(0))).lpToken();
-        lpToken.transfer(lockedLpMigrationTarget, lpToken.balanceOf(address(this)));
+        uint256 lpTokenAmount = lpToken.balanceOf(address(this));
+        lpToken.transfer(lockedLpMigrationTarget, lpTokenAmount);
+
+        emit MigrateLockedLp(target, lpTokenAmount);
     }
 
     function vested() public view returns (uint256) {
