@@ -248,7 +248,7 @@ contract Nft is ERC721AUpgradeable, Ownable {
      * @notice Refunds eth to the caller for a specific set of token ids. The refund that they are entitled to is
      * based on how much they spent on minting NFTs. For example, if they spent a total of 5 eth on 5 NFTs then
      * they are entitled to a refund of 1 ETH per NFT burned. Refunds can only be claimed while the mint is still
-     *  live. This feature is optional and only works if the creator of the contract enables it.
+     * live. This feature is optional and only works if the creator of the contract enables it.
      * @param tokenIds The token ids to refund
      */
     function refund(uint256[] calldata tokenIds) public {

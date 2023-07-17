@@ -20,7 +20,7 @@ contract BatonLaunchpad is Ownable {
 
     /**
      * @notice Creates a new NFT contract.
-     * @param salt The salt used to create the new NFT contract.
+     * @param salt The salt used to create the new NFT contract (must be unique).
      * @param name The name of the NFT.
      * @param symbol The symbol of the NFT.
      * @param categories The categories of the NFT.
