@@ -9,7 +9,7 @@ import {Pair} from "caviar/Pair.sol";
 import {BatonFarm} from "baton-contracts/BatonFarm.sol";
 import {BatonFactory} from "baton-contracts/BatonFactory.sol";
 
-contract SeedYieldFarmTest is Test {
+contract MigrateTest is Test {
     using stdStorage for StdStorage;
 
     error TransferCallerNotOwnerNorApproved();

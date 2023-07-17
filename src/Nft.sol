@@ -77,9 +77,9 @@ contract Nft is ERC721AUpgradeable, Ownable {
     YieldFarmParams internal _yieldFarmParams;
     bool public refunds;
 
+    // state variables
     mapping(uint8 categoryIndex => uint256) public minted;
-    mapping(uint256 tokenId => uint256) public pricePaid;
-    mapping(address => Account) public _accounts;
+    mapping(address => Account) internal _accounts;
     uint64 public mintEndTimestamp;
     uint32 public totalVestClaimed;
     uint32 public maxMintSupply;
@@ -108,7 +108,8 @@ contract Nft is ERC721AUpgradeable, Ownable {
         // check that there is less than 256 categories
         if (categories_.length > 256) revert TooManyCategories();
 
-        // check that enough eth will be raised for the locked lp
+        // check that enough eth will be raised from the mint for the locked lp. for example, if there are 100 nfts reserved
+        // for the locked lp at a price of 0.1 eth, then we need to raise at least 10 eth for the locked lp to work.
         if (lockLpParams_.amount * lockLpParams_.price > minEthRaised(categories_, maxMintSupply_)) {
             revert InsufficientEthRaisedForLockedLp();
         }
@@ -280,8 +281,8 @@ contract Nft is ERC721AUpgradeable, Ownable {
         // to the transferFrom lock which prevents anyone transferring NFTs to the pair until the liquidity is locked.
         uint256[] memory tokenIds = new uint256[](amount);
         uint256 nextTokenId = _nextTokenId();
-        for (uint256 i = nextTokenId; i < amount + nextTokenId; i++) {
-            tokenIds[i] = i;
+        for (uint256 i = 0; i < amount; i++) {
+            tokenIds[i] = nextTokenId + i;
         }
         uint256 baseTokenAmount = _lockLpParams.price * amount;
         pair.nftAdd{value: baseTokenAmount}(
@@ -319,8 +320,8 @@ contract Nft is ERC721AUpgradeable, Ownable {
         // wrap the nfts and get fractional tokens
         uint256[] memory tokenIds = new uint256[](amount);
         uint256 nextTokenId = _nextTokenId();
-        for (uint256 i = nextTokenId; i < amount + nextTokenId; i++) {
-            tokenIds[i] = i;
+        for (uint256 i = 0; i < amount; i++) {
+            tokenIds[i] = nextTokenId + i;
         }
         bytes32[][] memory proofs = new bytes32[][](0);
         uint256 rewardTokenAmount = pair.wrap(tokenIds, proofs, messages);
