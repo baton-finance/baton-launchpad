@@ -17,6 +17,9 @@ import {BatonLaunchpad} from "./BatonLaunchpad.sol";
 contract Nft is ERC721AUpgradeable, Ownable {
     using SafeTransferLib for address;
 
+    /// ░░░░░░░░░░░░░░░░░░░░░░░░░
+    /// Errors
+
     error TooManyCategories();
     error CategoryDoesNotExist();
     error InvalidEthAmount();
@@ -38,6 +41,9 @@ contract Nft is ERC721AUpgradeable, Ownable {
     error MigrationNotInitiated();
     error MigrationTargetNotMatched();
 
+    /// ░░░░░░░░░░░░░░░░░░░░░░░░░
+    /// Events
+
     event Mint(address indexed account, uint256 indexed amount, uint256 indexed price);
     event Refund(address indexed account, uint256 indexed nftAmount, uint256 indexed ethAmount);
     event Vest(uint256 indexed amount);
@@ -46,6 +52,9 @@ contract Nft is ERC721AUpgradeable, Ownable {
     event Withdraw(uint256 indexed ethAmount);
     event InitiateLockedLpMigration(address indexed target);
     event MigrateLockedLp(address indexed target, uint256 indexed lpTokenAmount);
+
+    /// ░░░░░░░░░░░░░░░░░░░░░░░░░
+    /// Structs
 
     struct Category {
         uint128 price;
@@ -74,19 +83,25 @@ contract Nft is ERC721AUpgradeable, Ownable {
         uint64 duration;
     }
 
-    // immutables
+    /// ░░░░░░░░░░░░░░░░░░░░░░░░░
+    /// Immutables
+
     Caviar public immutable caviar;
     BatonLaunchpad public immutable batonLaunchpad;
     BatonFactory public immutable batonFactory;
 
-    // feature parameters
+    /// ░░░░░░░░░░░░░░░░░░░░░░░░░
+    /// Feature parameters
+
     Category[] internal _categories;
     VestingParams internal _vestingParams;
     LockLpParams internal _lockLpParams;
     YieldFarmParams internal _yieldFarmParams;
     bool public refunds;
 
-    // state variables
+    /// ░░░░░░░░░░░░░░░░░░░░░░░░░
+    /// State variables
+
     mapping(uint8 categoryIndex => uint256) public minted;
     mapping(address => Account) internal _accounts;
     uint64 public mintEndTimestamp;
@@ -103,10 +118,22 @@ contract Nft is ERC721AUpgradeable, Ownable {
         batonFactory = BatonFactory(payable(batonFactory_));
     }
 
+    /**
+     * @notice Initialize the contract
+     * @param name_ The name of the token
+     * @param symbol_ The symbol of the token
+     * @param owner_ The owner of the contract
+     * @param categories_ The categories of the nfts
+     * @param maxMintSupply_ The max mint supply
+     * @param refunds_ Whether refunds are enabled
+     * @param vestingParams_ The vesting params
+     * @param lockLpParams_ The lock lp params
+     * @param yieldFarmParams_ The yield farm params
+     */
     function initialize(
         string calldata name_,
         string calldata symbol_,
-        address owner,
+        address owner_,
         Category[] calldata categories_,
         uint32 maxMintSupply_,
         bool refunds_,
@@ -127,7 +154,7 @@ contract Nft is ERC721AUpgradeable, Ownable {
         __ERC721A_init(name_, symbol_);
 
         // initialize the owner
-        _initializeOwner(owner);
+        _initializeOwner(owner_);
 
         // push all categories
         for (uint256 i = 0; i < categories_.length; i++) {
@@ -150,6 +177,17 @@ contract Nft is ERC721AUpgradeable, Ownable {
         _yieldFarmParams = yieldFarmParams_;
     }
 
+    /// ░░░░░░░░░░░░░░░░░░░░░░░░░
+    /// Core logic functions
+
+    /**
+     * @notice Mints an amount of NFTs to the caller from a specific category. The caller must pay
+     * the price that is specified in the category and if there is a whitelist associated with the
+     * category then they must also submit a merkle proof showing that they are in the whitelist.
+     * @param amount The amount of NFTs to mint
+     * @param categoryIndex The index of the category to mint from
+     * @param proof The merkle proof (if not required then set to be an empty array)
+     */
     function mint(uint64 amount, uint8 categoryIndex, bytes32[] calldata proof) public payable {
         // ✅ Checks ✅
 
@@ -172,9 +210,10 @@ contract Nft is ERC721AUpgradeable, Ownable {
         // if the merkle root is not zero then verify that the caller is whitelisted
         if (
             category.merkleRoot != bytes32(0)
-                && !MerkleProofLib.verifyCalldata(
-                    proof, category.merkleRoot, keccak256(bytes.concat(keccak256(abi.encode(msg.sender))))
-                )
+            // todo: is it necessary to do a double hash of the caller here?
+            && !MerkleProofLib.verifyCalldata(
+                proof, category.merkleRoot, keccak256(bytes.concat(keccak256(abi.encode(msg.sender))))
+            )
         ) {
             revert InvalidMerkleProof();
         }
@@ -187,8 +226,8 @@ contract Nft is ERC721AUpgradeable, Ownable {
             _accounts[msg.sender].availableRefund += category.price * amount;
         }
 
-        // mint the tokens
-        _safeMint(msg.sender, amount);
+        // mint the tokens to the caller
+        _mint(msg.sender, amount);
 
         if (totalSupply() == maxMintSupply) {
             // set the mint end timestamp if mint is complete
@@ -198,13 +237,20 @@ contract Nft is ERC721AUpgradeable, Ownable {
         // 🛠️ Interactions 🛠️
 
         if (fee > 0) {
-            // transfer the fee
+            // transfer the protocol fee
             address(batonLaunchpad).safeTransferETH(fee);
         }
 
         emit Mint(msg.sender, amount, category.price);
     }
 
+    /**
+     * @notice Refunds eth to the caller for a specific set of token ids. The refund that they are entitled to is
+     * based on how much they spent on minting NFTs. For example, if they spent a total of 5 eth on 5 NFTs then
+     * they are entitled to a refund of 1 ETH per NFT burned. Refunds can only be claimed while the mint is still
+     *  live. This feature is optional and only works if the creator of the contract enables it.
+     * @param tokenIds The token ids to refund
+     */
     function refund(uint256[] calldata tokenIds) public {
         // ✅ Checks ✅
 
@@ -237,6 +283,11 @@ contract Nft is ERC721AUpgradeable, Ownable {
         emit Refund(msg.sender, tokenIds.length, totalRefundAmount);
     }
 
+    /**
+     * @notice Mints NFTs to the vesting receiver. The amount of NFTs that can be minted is based on the vesting rate
+     * and how much time has passed since the last time this function was called.
+     * @param amount The amount of NFTs to mint
+     */
     function vest(uint256 amount) public {
         // ✅ Checks ✅
 
@@ -256,11 +307,19 @@ contract Nft is ERC721AUpgradeable, Ownable {
         totalVestClaimed += uint32(amount);
 
         // mint the nfts
-        _safeMint(msg.sender, amount);
+        _mint(msg.sender, amount);
 
         emit Vest(amount);
     }
 
+    /**
+     * @notice Mints an amount of NFTs and then deposits them as liquidity into a Caviar pool; using
+     * ETH proceeds from the mint as the other side. The price of the NFTs is based on the price set
+     * in the lockLpParams variable. This function can be repeatedly called until all of the liquidity
+     * has been locked (based on the lockLpParams variable).
+     * @param amount The amount of NFTs to mint
+     * @param messages The messages from Reservoir proving that the newly minted NFTs are not stolen
+     */
     function lockLp(uint32 amount, StolenNftFilterOracle.Message[] calldata messages) public {
         // ✅ Checks ✅
 
@@ -284,21 +343,21 @@ contract Nft is ERC721AUpgradeable, Ownable {
             pair = caviar.create(address(this), address(0), bytes32(0));
         }
 
-        // mint the tokens directly to the pair. this is done to take advantage of ERC721A's
-        // amortization of the gas cost of minting. we save a lot of gas by doing this.
-        _mint(address(pair), amount); // <-- 👷 Late effect (safe)
-
-        // approve the pair to transfer the NFTs
-        this.setApprovalForAll(address(pair), true);
-
-        // deposit liquidity into the pair
-        // we can ignore the min lp token and price bounds as we are the only ones that can deposit into the pair due
-        // to the transferFrom lock which prevents anyone transferring NFTs to the pair until the liquidity is locked.
+        // calculate the token ids for each of the newly minted nfts
         uint256[] memory tokenIds = new uint256[](amount);
         uint256 nextTokenId = _nextTokenId();
         for (uint256 i = 0; i < amount; i++) {
             tokenIds[i] = nextTokenId + i;
         }
+
+        // mint the tokens directly to the pair. this is done to take advantage of ERC721A's
+        // amortization of the gas cost of minting. we save a lot of gas by doing this.
+        _mint(address(pair), amount); // <-- 👷 Late effect (safe)
+
+        // deposit liquidity into the pair
+        // we can ignore the min lp token and price bounds as we are the only ones that can deposit into the pair due
+        // to the transferFrom lock which prevents anyone transferring NFTs to the pair until the liquidity is locked
+        // -- meaning that frontrunning is not an issue.
         uint256 baseTokenAmount = _lockLpParams.price * amount;
         pair.nftAdd{value: baseTokenAmount}(
             baseTokenAmount, tokenIds, 0, 0, type(uint256).max, 0, new bytes32[][](0), messages
@@ -307,6 +366,14 @@ contract Nft is ERC721AUpgradeable, Ownable {
         emit LockLp(msg.sender, amount);
     }
 
+    /**
+     * @notice Seeds the yield farm on Baton with an amount of NFTs. If this is the first time that the function is
+     * called then a new yield farm will be deployed and initialized. Otherwise, this function can be repeatedly
+     * called until all of the NFTs have been seeded (based on the yieldFarmParams variable). If locked LP is
+     * enabled then all of liquidity has to be locked before this function can be called.
+     * @param amount The amount of NFTs to seed
+     * @param messages The messages from Reservoir proving that the newly minted NFTs are not stolen
+     */
     function seedYieldFarm(uint32 amount, StolenNftFilterOracle.Message[] calldata messages) public {
         // ✅ Checks ✅
 
@@ -331,15 +398,17 @@ contract Nft is ERC721AUpgradeable, Ownable {
             pair = caviar.create(address(this), address(0), bytes32(0));
         }
 
-        // mint the nfts to caviar
-        _mint(address(pair), amount); // <-- 👷 Late effect (safe)
-
-        // wrap the nfts and get fractional tokens
+        // calculate the token ids for each of the newly minted nfts
         uint256[] memory tokenIds = new uint256[](amount);
         uint256 nextTokenId = _nextTokenId();
         for (uint256 i = 0; i < amount; i++) {
             tokenIds[i] = nextTokenId + i;
         }
+
+        // mint the nfts to caviar
+        _mint(address(pair), amount); // <-- 👷 Late effect (safe)
+
+        // wrap the nfts and get fractional tokens
         bytes32[][] memory proofs = new bytes32[][](0);
         uint256 rewardTokenAmount = pair.wrap(tokenIds, proofs, messages);
 
@@ -371,6 +440,10 @@ contract Nft is ERC721AUpgradeable, Ownable {
         emit SeedYieldFarm(msg.sender, amount);
     }
 
+    /**
+     * @notice Withdraws ETH from the contract to the owner. This function can only be called after the mint has completed,
+     * the liquidity has been locked (if enabled), and the yield farm seeded (if enabled).
+     */
     function withdraw() public onlyOwner {
         // ✅ Checks ✅
 
@@ -390,6 +463,13 @@ contract Nft is ERC721AUpgradeable, Ownable {
         emit Withdraw(ethAmount);
     }
 
+    /**
+     * @notice Initiates a migration of the locked lp tokens to a new target address. This function is the first of two required
+     * functions that need to be called before a migration can be finalized. It can only be called by the owner of this contract.
+     * The second function (migrateLockedLp) can only be called by the Baton admin. This provides an escape hatch to allow for
+     * migration of liquidity to newer versions of NFT AMMs.
+     * @param target The address that the locked lp tokens will be migrated to
+     */
     function initiateLockedLpMigration(address target) public onlyOwner {
         // set the destination address for the lp tokens
         lockedLpMigrationTarget = target;
@@ -397,6 +477,12 @@ contract Nft is ERC721AUpgradeable, Ownable {
         emit InitiateLockedLpMigration(target);
     }
 
+    /**
+     * @notice Finalizes a migration of the locked lp tokens to a new target address. This function is the second of two required
+     * functions that need to be called before a migration can be finalized. It can only be called by the Baton admin. The first
+     * function can only be called by the owner of this contract.
+     * @param target The address that the locked lp tokens will be migrated to (must match the address set in initiateLockedLpMigration)
+     */
     function migrateLockedLp(address target) public {
         // ✅ Checks ✅
 
@@ -419,6 +505,12 @@ contract Nft is ERC721AUpgradeable, Ownable {
         emit MigrateLockedLp(target, lpTokenAmount);
     }
 
+    /// ░░░░░░░░░░░░░░░░░░░░░░░░░
+    /// Getters
+
+    /**
+     * @return The total amount of vested tokens
+     */
     function vested() public view returns (uint256) {
         if (mintEndTimestamp == 0) return 0;
 
@@ -429,6 +521,35 @@ contract Nft is ERC721AUpgradeable, Ownable {
             min(block.timestamp, mintEndTimestamp + _vestingParams.duration) - uint256(mintEndTimestamp),
             1e18
         );
+    }
+
+    /**
+     * @notice Calculates the minimum amount of ETH that will be raised if the mint completes. For example, consider
+     * the following configuration:
+     *  - availableMintSupply = 100
+     *  - category 1 = supply 150, price 2 ether
+     *  - category 2 = supply 50, price 6 ether
+     * then the minimum that can be raised if the mint completes is 200 ether = 2 ether (category 1 price) * 100 (available mint supply)
+     * @param categories The categories to calculate the minimum eth raised for
+     * @param availableMintSupply The amount of tokens that are still available to be minted
+     * @return The minimum amount of ETH that will be raised if the mint completes
+     */
+    function minEthRaised(Category[] calldata categories, uint256 availableMintSupply) public pure returns (uint256) {
+        uint256 minEth = 0;
+
+        for (uint256 i = 0; i < categories.length; i++) {
+            // check that the categories are sorted by price
+            if (i != 0 && categories[i - 1].price > categories[i].price) revert CategoriesNotSortedByPrice();
+
+            // add to the total min eth raised
+            minEth += categories[i].price * min(categories[i].supply, availableMintSupply);
+            availableMintSupply -= min(categories[i].supply, availableMintSupply);
+
+            // break if there is no more available mint supply
+            if (availableMintSupply == 0) break;
+        }
+
+        return minEth;
     }
 
     function categories(uint8 category) public view returns (Category memory) {
@@ -451,28 +572,27 @@ contract Nft is ERC721AUpgradeable, Ownable {
         return _yieldFarmParams;
     }
 
+    /// ░░░░░░░░░░░░░░░░░░░░░░░░░
+    /// Helpers
+
     function min(uint256 a, uint256 b) internal pure returns (uint256) {
         return a < b ? a : b;
     }
 
-    function minEthRaised(Category[] calldata categories, uint256 availableMintSupply) public pure returns (uint256) {
-        uint256 minEth = 0;
+    /// ░░░░░░░░░░░░░░░░░░░░░░░░░
+    /// Overrides
 
-        for (uint256 i = 0; i < categories.length; i++) {
-            // check that the categories are sorted by price
-            if (i != 0 && categories[i - 1].price > categories[i].price) revert CategoriesNotSortedByPrice();
-
-            // add to the total min eth raised
-            minEth += categories[i].price * min(categories[i].supply, availableMintSupply);
-            availableMintSupply -= min(categories[i].supply, availableMintSupply);
-
-            // break if there is no more available mint supply
-            if (availableMintSupply == 0) break;
-        }
-
-        return minEth;
-    }
-
+    /**
+     * @notice Transfers tokens from one address to another
+     * @dev This function prevents any transfers to the caviar pair until the lp has finished locking. It also returns
+     * early if the caviar pair attempts to transfer tokens from this contract to the pair. This should only be the case
+     * during the lp locking process (pair.nftAdd) or yield farming process (pair.wrap). In each of these cases, we
+     * mint the tokens directly to the caviar pair so we don't need to do the transfer. This allows us to take advantage
+     * of the amortized gas savings that are applied when minting tokens from the ERC721A library.
+     * @param from The address to transfer tokens from
+     * @param to The address to transfer tokens to
+     * @param tokenId The id of the token to transfer
+     */
     function transferFrom(address from, address to, uint256 tokenId) public payable override {
         // Skip doing any state changes if the caviar pair attempts to transfer tokens from this contract to the pair.
         // We don't need to do the transfer because in the seedYieldFarm and lockLp functions we mint the NFTs directly
