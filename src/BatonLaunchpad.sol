@@ -8,6 +8,29 @@ import {Nft} from "./Nft.sol";
 contract BatonLaunchpad is Ownable {
     using LibClone for address;
 
+    /**
+     * @dev Use a struct to avoid "stack too deep" error.
+     * @param name The name of the NFT.
+     * @param symbol The symbol of the NFT.
+     * @param categories The categories of the NFT.
+     * @param maxMintSupply The max mint supply of the NFT.
+     * @param refundParams_ The refund params.
+     * @param vestingParams The vesting params of the NFT.
+     * @param lockLpParams The lock LP params of the NFT.
+     * @param yieldFarmParams The yield farm params of the NFT.
+     * @return nft The address of the newly created NFT contract.
+     */
+    struct CreateParams {
+        string name;
+        string symbol;
+        Nft.Category[] categories;
+        uint32 maxMintSupply;
+        Nft.RefundParams refundParams;
+        Nft.VestingParams vestingParams;
+        Nft.LockLpParams lockLpParams;
+        Nft.YieldFarmParams yieldFarmParams;
+    }
+
     address public nftImplementation;
     uint256 public feeRate;
 
@@ -20,34 +43,25 @@ contract BatonLaunchpad is Ownable {
 
     /**
      * @notice Creates a new NFT contract.
-     * @param salt The salt used to create the new NFT contract (must be unique).
-     * @param name The name of the NFT.
-     * @param symbol The symbol of the NFT.
-     * @param categories The categories of the NFT.
-     * @param maxMintSupply The max mint supply of the NFT.
-     * @param refunds Whether or not refunds are enabled.
-     * @param vestingParams The vesting params of the NFT.
-     * @param lockLpParams The lock LP params of the NFT.
-     * @param yieldFarmParams The yield farm params of the NFT.
+     * @param createParams The parameters used to create the NFT.
+     * @param salt The salt used when cloning the NFT via create2 (must be unique).
      * @return nft The address of the newly created NFT contract.
      */
-    function create(
-        bytes32 salt,
-        string memory name,
-        string memory symbol,
-        Nft.Category[] memory categories,
-        uint32 maxMintSupply,
-        bool refunds,
-        Nft.VestingParams memory vestingParams,
-        Nft.LockLpParams memory lockLpParams,
-        Nft.YieldFarmParams memory yieldFarmParams
-    ) public returns (Nft nft) {
+    function create(CreateParams memory createParams, bytes32 salt) public returns (Nft nft) {
         // deploy the nft
         nft = Nft(payable(nftImplementation.cloneDeterministic(salt)));
 
         // initialize the nft
         nft.initialize(
-            name, symbol, msg.sender, categories, maxMintSupply, refunds, vestingParams, lockLpParams, yieldFarmParams
+            createParams.name,
+            createParams.symbol,
+            msg.sender,
+            createParams.categories,
+            createParams.maxMintSupply,
+            createParams.refundParams,
+            createParams.vestingParams,
+            createParams.lockLpParams,
+            createParams.yieldFarmParams
         );
     }
 

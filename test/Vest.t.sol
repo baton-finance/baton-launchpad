@@ -46,15 +46,17 @@ contract VestTest is Test {
         vestingParams = Nft.VestingParams({receiver: address(babe), duration: 30 days, amount: 300});
         nft = Nft(
             launchpad.create(
-                bytes32(0),
-                "name",
-                "symbol",
-                categories,
-                10,
-                true,
-                vestingParams,
-                Nft.LockLpParams({amount: 0, price: 0 ether}),
-                Nft.YieldFarmParams({amount: 0, duration: 0})
+                BatonLaunchpad.CreateParams({
+                    name: "name",
+                    symbol: "symbol",
+                    categories: categories,
+                    maxMintSupply: 10,
+                    refundParams: Nft.RefundParams({mintEndTimestamp: 0}),
+                    vestingParams: vestingParams,
+                    lockLpParams: Nft.LockLpParams({amount: 0, price: 0 ether}),
+                    yieldFarmParams: Nft.YieldFarmParams({amount: 0, duration: 0})
+                }),
+                keccak256(abi.encode(123))
             )
         );
 
@@ -116,7 +118,7 @@ contract VestTest is Test {
 
         // claim the vested NFTs
         skip(1 days);
-        vm.expectRevert(Nft.MintNotFinished.selector);
+        vm.expectRevert(Nft.VestingNotStarted.selector);
         nft.vest(1);
     }
 
@@ -166,27 +168,5 @@ contract VestTest is Test {
 
         // assert that the vested amount is correct
         assertEq(vested, 300);
-    }
-
-    function test_mint_setsMintEndTimestampIfMintIsComplete() public {
-        vm.startPrank(babe);
-
-        // mint the nft
-        uint256 amount = 10;
-        nft.mint{value: amount * nft.categories(0).price}(uint64(amount), 0, new bytes32[](0));
-
-        // assert that the mint end timestamp is set
-        assertEq(nft.mintEndTimestamp(), block.timestamp);
-    }
-
-    function test_mint_doesNotSetMintEndTimestampIfNotComplete() public {
-        vm.startPrank(babe);
-
-        // mint the nft
-        uint256 amount = 9;
-        nft.mint{value: amount * nft.categories(0).price}(uint64(amount), 0, new bytes32[](0));
-
-        // assert that the mint end timestamp is not set
-        assertEq(nft.mintEndTimestamp(), 0);
     }
 }

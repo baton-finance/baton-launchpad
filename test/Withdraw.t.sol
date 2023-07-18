@@ -48,15 +48,17 @@ contract WithdrawTest is Test {
         vm.prank(owner);
         nft = Nft(
             launchpad.create(
-                bytes32(0),
-                "name",
-                "symbol",
-                categories,
-                3000,
-                true,
-                Nft.VestingParams({receiver: address(0), duration: 0, amount: 0}),
-                Nft.LockLpParams({amount: 100, price: 1 ether}),
-                Nft.YieldFarmParams({amount: 1000, duration: 1 days})
+                BatonLaunchpad.CreateParams({
+                    name: "name",
+                    symbol: "symbol",
+                    categories: categories,
+                    maxMintSupply: 3000,
+                    refundParams: Nft.RefundParams({mintEndTimestamp: 0}),
+                    vestingParams: Nft.VestingParams({receiver: address(0), duration: 0, amount: 0}),
+                    lockLpParams: Nft.LockLpParams({amount: 100, price: 1 ether}),
+                    yieldFarmParams: Nft.YieldFarmParams({amount: 1000, duration: 1 days})
+                }),
+                keccak256(abi.encode(123))
             )
         );
 
@@ -132,7 +134,7 @@ contract WithdrawTest is Test {
 
         // try to withdraw
         vm.startPrank(owner);
-        vm.expectRevert(Nft.MintNotFinished.selector);
+        vm.expectRevert(Nft.MintNotComplete.selector);
         nft.withdraw();
     }
 

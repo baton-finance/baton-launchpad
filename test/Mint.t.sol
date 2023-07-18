@@ -86,15 +86,17 @@ contract MintTest is Test {
         // create the nft
         Nft nft = Nft(
             launchpad.create(
-                bytes32(0),
-                "name",
-                "symbol",
-                categories,
-                100,
-                true,
-                Nft.VestingParams({receiver: address(0), duration: 0, amount: 0}),
-                Nft.LockLpParams({amount: 0, price: 0 ether}),
-                Nft.YieldFarmParams({amount: 0, duration: 0})
+                BatonLaunchpad.CreateParams({
+                    name: "name",
+                    symbol: "symbol",
+                    categories: categories,
+                    maxMintSupply: 100,
+                    refundParams: Nft.RefundParams({mintEndTimestamp: 0}),
+                    vestingParams: Nft.VestingParams({receiver: address(0), duration: 0, amount: 0}),
+                    lockLpParams: Nft.LockLpParams({amount: 0, price: 0 ether}),
+                    yieldFarmParams: Nft.YieldFarmParams({amount: 0, duration: 0})
+                }),
+                bytes32(0)
             )
         );
 
@@ -118,15 +120,17 @@ contract MintTest is Test {
         // create the nft
         Nft nft = Nft(
             launchpad.create(
-                bytes32(0),
-                "name",
-                "symbol",
-                categories,
-                100,
-                true,
-                Nft.VestingParams({receiver: address(0), duration: 0, amount: 0}),
-                Nft.LockLpParams({amount: 0, price: 0 ether}),
-                Nft.YieldFarmParams({amount: 0, duration: 0})
+                BatonLaunchpad.CreateParams({
+                    name: "name",
+                    symbol: "symbol",
+                    categories: categories,
+                    maxMintSupply: 100,
+                    refundParams: Nft.RefundParams({mintEndTimestamp: 0}),
+                    vestingParams: Nft.VestingParams({receiver: address(0), duration: 0, amount: 0}),
+                    lockLpParams: Nft.LockLpParams({amount: 0, price: 0 ether}),
+                    yieldFarmParams: Nft.YieldFarmParams({amount: 0, duration: 0})
+                }),
+                bytes32(0)
             )
         );
 
@@ -150,15 +154,17 @@ contract MintTest is Test {
         // create the nft
         Nft nft = Nft(
             launchpad.create(
-                bytes32(0),
-                "name",
-                "symbol",
-                categories,
-                100,
-                true,
-                Nft.VestingParams({receiver: address(0), duration: 0, amount: 0}),
-                Nft.LockLpParams({amount: 0, price: 0 ether}),
-                Nft.YieldFarmParams({amount: 0, duration: 0})
+                BatonLaunchpad.CreateParams({
+                    name: "name",
+                    symbol: "symbol",
+                    categories: categories,
+                    maxMintSupply: 100,
+                    refundParams: Nft.RefundParams({mintEndTimestamp: 0}),
+                    vestingParams: Nft.VestingParams({receiver: address(0), duration: 0, amount: 0}),
+                    lockLpParams: Nft.LockLpParams({amount: 0, price: 0 ether}),
+                    yieldFarmParams: Nft.YieldFarmParams({amount: 0, duration: 0})
+                }),
+                bytes32(0)
             )
         );
 
@@ -179,15 +185,17 @@ contract MintTest is Test {
         // create the nft
         Nft nft = Nft(
             launchpad.create(
-                bytes32(0),
-                "name",
-                "symbol",
-                categories,
-                100,
-                true,
-                Nft.VestingParams({receiver: address(0), duration: 0, amount: 0}),
-                Nft.LockLpParams({amount: 0, price: 0 ether}),
-                Nft.YieldFarmParams({amount: 0, duration: 0})
+                BatonLaunchpad.CreateParams({
+                    name: "name",
+                    symbol: "symbol",
+                    categories: categories,
+                    maxMintSupply: 100,
+                    refundParams: Nft.RefundParams({mintEndTimestamp: 0}),
+                    vestingParams: Nft.VestingParams({receiver: address(0), duration: 0, amount: 0}),
+                    lockLpParams: Nft.LockLpParams({amount: 0, price: 0 ether}),
+                    yieldFarmParams: Nft.YieldFarmParams({amount: 0, duration: 0})
+                }),
+                bytes32(0)
             )
         );
 
@@ -204,15 +212,17 @@ contract MintTest is Test {
         // create the nft
         Nft nft = Nft(
             launchpad.create(
-                bytes32(0),
-                "name",
-                "symbol",
-                categories,
-                100,
-                true,
-                Nft.VestingParams({receiver: address(0), duration: 0, amount: 0}),
-                Nft.LockLpParams({amount: 0, price: 0 ether}),
-                Nft.YieldFarmParams({amount: 0, duration: 0})
+                BatonLaunchpad.CreateParams({
+                    name: "name",
+                    symbol: "symbol",
+                    categories: categories,
+                    maxMintSupply: 100,
+                    refundParams: Nft.RefundParams({mintEndTimestamp: 0}),
+                    vestingParams: Nft.VestingParams({receiver: address(0), duration: 0, amount: 0}),
+                    lockLpParams: Nft.LockLpParams({amount: 0, price: 0 ether}),
+                    yieldFarmParams: Nft.YieldFarmParams({amount: 0, duration: 0})
+                }),
+                bytes32(0)
             )
         );
 
@@ -237,15 +247,17 @@ contract MintTest is Test {
         // create the nft
         Nft nft = Nft(
             launchpad.create(
-                bytes32(0),
-                "name",
-                "symbol",
-                categories,
-                100,
-                true,
-                Nft.VestingParams({receiver: address(0), duration: 0, amount: 0}),
-                Nft.LockLpParams({amount: 0, price: 0 ether}),
-                Nft.YieldFarmParams({amount: 0, duration: 0})
+                BatonLaunchpad.CreateParams({
+                    name: "name",
+                    symbol: "symbol",
+                    categories: categories,
+                    maxMintSupply: 100,
+                    refundParams: Nft.RefundParams({mintEndTimestamp: 0}),
+                    vestingParams: Nft.VestingParams({receiver: address(0), duration: 0, amount: 0}),
+                    lockLpParams: Nft.LockLpParams({amount: 0, price: 0 ether}),
+                    yieldFarmParams: Nft.YieldFarmParams({amount: 0, duration: 0})
+                }),
+                bytes32(0)
             )
         );
 
@@ -263,15 +275,17 @@ contract MintTest is Test {
         // create the nft
         Nft nft = Nft(
             launchpad.create(
-                bytes32(0),
-                "name",
-                "symbol",
-                categories,
-                100,
-                true,
-                Nft.VestingParams({receiver: address(0), duration: 0, amount: 0}),
-                Nft.LockLpParams({amount: 0, price: 0 ether}),
-                Nft.YieldFarmParams({amount: 0, duration: 0})
+                BatonLaunchpad.CreateParams({
+                    name: "name",
+                    symbol: "symbol",
+                    categories: categories,
+                    maxMintSupply: 100,
+                    refundParams: Nft.RefundParams({mintEndTimestamp: 0}),
+                    vestingParams: Nft.VestingParams({receiver: address(0), duration: 0, amount: 0}),
+                    lockLpParams: Nft.LockLpParams({amount: 0, price: 0 ether}),
+                    yieldFarmParams: Nft.YieldFarmParams({amount: 0, duration: 0})
+                }),
+                bytes32(0)
             )
         );
 

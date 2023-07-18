@@ -19,6 +19,7 @@ contract RefundTest is Test {
     Caviar caviar;
     BatonFactory batonFactory;
     Nft nft;
+    uint64 mintEndTimestamp;
 
     function setUp() public {
         // deploy caviar
@@ -41,17 +42,21 @@ contract RefundTest is Test {
         // set the categories
         Nft.Category[] memory categories = new Nft.Category[](1);
         categories[0] = Nft.Category({price: 1 ether, supply: 100, merkleRoot: bytes32(0)});
+        mintEndTimestamp = uint64(block.timestamp + 1 days);
+        // create the nft
         nft = Nft(
             launchpad.create(
-                bytes32(0),
-                "name",
-                "symbol",
-                categories,
-                100,
-                true,
-                Nft.VestingParams({receiver: address(0), duration: 0, amount: 0}),
-                Nft.LockLpParams({amount: 0, price: 0 ether}),
-                Nft.YieldFarmParams({amount: 0, duration: 0})
+                BatonLaunchpad.CreateParams({
+                    name: "name",
+                    symbol: "symbol",
+                    categories: categories,
+                    maxMintSupply: 100,
+                    refundParams: Nft.RefundParams({mintEndTimestamp: mintEndTimestamp}),
+                    vestingParams: Nft.VestingParams({receiver: address(0), duration: 0, amount: 0}),
+                    lockLpParams: Nft.LockLpParams({amount: 0, price: 0 ether}),
+                    yieldFarmParams: Nft.YieldFarmParams({amount: 0, duration: 0})
+                }),
+                bytes32(0)
             )
         );
 
@@ -70,6 +75,7 @@ contract RefundTest is Test {
         uint256 balanceBefore = babe.balance;
 
         // send the nft to the launchpad
+        vm.warp(mintEndTimestamp + 1);
         uint256[] memory tokenIds = new uint256[](2);
         tokenIds[0] = 0;
         tokenIds[1] = 1;
@@ -87,6 +93,7 @@ contract RefundTest is Test {
         nft.mint{value: amount * nft.categories(0).price}(uint64(amount), 0, new bytes32[](0));
 
         // send the nft to the launchpad
+        vm.warp(mintEndTimestamp + 1);
         uint256[] memory tokenIds = new uint256[](2);
         tokenIds[0] = 0;
         tokenIds[1] = 1;
@@ -108,6 +115,7 @@ contract RefundTest is Test {
         nft.mint{value: amount * nft.categories(0).price}(uint64(amount), 0, new bytes32[](0));
 
         // send the nft to the launchpad
+        vm.warp(mintEndTimestamp + 1);
         uint256[] memory tokenIds = new uint256[](2);
         tokenIds[0] = 0;
         tokenIds[1] = 1;
@@ -134,6 +142,7 @@ contract RefundTest is Test {
         uint256[] memory tokenIds = new uint256[](2);
         tokenIds[0] = 0;
         tokenIds[1] = 1;
+        vm.warp(mintEndTimestamp + 1);
 
         vm.startPrank(address(0xdead));
         vm.expectRevert(TransferCallerNotOwnerNorApproved.selector);
@@ -146,6 +155,7 @@ contract RefundTest is Test {
         // mint the nft
         uint256 amount = 5;
         nft.mint{value: amount * nft.categories(0).price}(uint64(amount), 0, new bytes32[](0));
+        vm.warp(mintEndTimestamp + 1);
 
         for (uint256 i = 0; i < amount; i++) {
             // get the balance of babe
@@ -166,8 +176,26 @@ contract RefundTest is Test {
     }
 
     function test_RevertIfRefundsNotEnabled() public {
-        // disable refunds
-        stdstore.target(address(nft)).sig("refunds()").checked_write(false);
+        // set the categories
+        Nft.Category[] memory categories = new Nft.Category[](1);
+        categories[0] = Nft.Category({price: 1 ether, supply: 100, merkleRoot: bytes32(0)});
+
+        // create the nft
+        nft = Nft(
+            launchpad.create(
+                BatonLaunchpad.CreateParams({
+                    name: "name",
+                    symbol: "symbol",
+                    categories: categories,
+                    maxMintSupply: 100,
+                    refundParams: Nft.RefundParams({mintEndTimestamp: 0}), // disable refunds
+                    vestingParams: Nft.VestingParams({receiver: address(0), duration: 0, amount: 0}),
+                    lockLpParams: Nft.LockLpParams({amount: 0, price: 0 ether}),
+                    yieldFarmParams: Nft.YieldFarmParams({amount: 0, duration: 0})
+                }),
+                keccak256(abi.encode(123))
+            )
+        );
 
         vm.expectRevert(Nft.RefundsNotEnabled.selector);
         nft.refund(new uint256[](0));
@@ -188,8 +216,26 @@ contract RefundTest is Test {
     function test_SkipsAccountUpdateIfRefundsNotEnabled() public {
         vm.startPrank(babe);
 
-        // disable refunds
-        stdstore.target(address(nft)).sig("refunds()").checked_write(false);
+        // set the categories
+        Nft.Category[] memory categories = new Nft.Category[](1);
+        categories[0] = Nft.Category({price: 1 ether, supply: 100, merkleRoot: bytes32(0)});
+
+        // create the nft
+        nft = Nft(
+            launchpad.create(
+                BatonLaunchpad.CreateParams({
+                    name: "name",
+                    symbol: "symbol",
+                    categories: categories,
+                    maxMintSupply: 100,
+                    refundParams: Nft.RefundParams({mintEndTimestamp: 0}), // disable refunds
+                    vestingParams: Nft.VestingParams({receiver: address(0), duration: 0, amount: 0}),
+                    lockLpParams: Nft.LockLpParams({amount: 0, price: 0 ether}),
+                    yieldFarmParams: Nft.YieldFarmParams({amount: 0, duration: 0})
+                }),
+                keccak256(abi.encode(123))
+            )
+        );
 
         // mint the nft
         uint256 amount = 5;
@@ -198,5 +244,39 @@ contract RefundTest is Test {
         // assert the total minted and available refund were not updated
         assertEq(nft.accounts(babe).totalMinted, 0);
         assertEq(nft.accounts(babe).availableRefund, 0);
+    }
+
+    function test_RevertIfMintComplete() public {
+        vm.startPrank(babe);
+
+        // mint the nft
+        uint256 amount = nft.maxMintSupply();
+        nft.mint{value: amount * nft.categories(0).price}(uint64(amount), 0, new bytes32[](0));
+
+        // send the nft to the launchpad
+        uint256[] memory tokenIds = new uint256[](2);
+        tokenIds[0] = 0;
+        tokenIds[1] = 1;
+        vm.warp(mintEndTimestamp + 1);
+
+        vm.expectRevert(Nft.MintComplete.selector);
+        nft.refund(tokenIds);
+    }
+
+    function test_RevertIfMintNotExpired() public {
+        vm.startPrank(babe);
+
+        // mint the nft
+        uint256 amount = 5;
+        nft.mint{value: amount * nft.categories(0).price}(uint64(amount), 0, new bytes32[](0));
+
+        // send the nft to the launchpad
+        uint256[] memory tokenIds = new uint256[](2);
+        tokenIds[0] = 0;
+        tokenIds[1] = 1;
+        vm.warp(mintEndTimestamp - 1);
+
+        vm.expectRevert(Nft.MintNotExpired.selector);
+        nft.refund(tokenIds);
     }
 }

@@ -45,15 +45,17 @@ contract SeedYieldFarmTest is Test {
         categories[0] = Nft.Category({price: 1 ether, supply: 3000, merkleRoot: bytes32(0)});
         nft = Nft(
             launchpad.create(
-                bytes32(0),
-                "name",
-                "symbol",
-                categories,
-                3000,
-                true,
-                Nft.VestingParams({receiver: address(0), duration: 0, amount: 0}),
-                Nft.LockLpParams({amount: 0, price: 0}),
-                Nft.YieldFarmParams({amount: 1000, duration: 1 days})
+                BatonLaunchpad.CreateParams({
+                    name: "name",
+                    symbol: "symbol",
+                    categories: categories,
+                    maxMintSupply: 3000,
+                    refundParams: Nft.RefundParams({mintEndTimestamp: 0}),
+                    vestingParams: Nft.VestingParams({receiver: address(0), duration: 0, amount: 0}),
+                    lockLpParams: Nft.LockLpParams({amount: 0, price: 0 ether}),
+                    yieldFarmParams: Nft.YieldFarmParams({amount: 1000, duration: 1 days})
+                }),
+                bytes32(0)
             )
         );
 
@@ -185,15 +187,17 @@ contract SeedYieldFarmTest is Test {
         categories[0] = Nft.Category({price: 1 ether, supply: 3000, merkleRoot: bytes32(0)});
         nft = Nft(
             launchpad.create(
-                keccak256(abi.encode(0)),
-                "name",
-                "symbol",
-                categories,
-                3000,
-                true,
-                Nft.VestingParams({receiver: address(0), duration: 0, amount: 0}),
-                Nft.LockLpParams({amount: 0, price: 0}),
-                Nft.YieldFarmParams({amount: 0, duration: 0})
+                BatonLaunchpad.CreateParams({
+                    name: "name",
+                    symbol: "symbol",
+                    categories: categories,
+                    maxMintSupply: 3000,
+                    refundParams: Nft.RefundParams({mintEndTimestamp: 0}),
+                    vestingParams: Nft.VestingParams({receiver: address(0), duration: 0, amount: 0}),
+                    lockLpParams: Nft.LockLpParams({amount: 0, price: 0 ether}),
+                    yieldFarmParams: Nft.YieldFarmParams({amount: 0, duration: 0})
+                }),
+                keccak256(abi.encode(123))
             )
         );
 
@@ -220,15 +224,17 @@ contract SeedYieldFarmTest is Test {
         categories[0] = Nft.Category({price: 1 ether, supply: 3000, merkleRoot: bytes32(0)});
         nft = Nft(
             launchpad.create(
-                keccak256(abi.encode(0)),
-                "name",
-                "symbol",
-                categories,
-                3000,
-                true,
-                Nft.VestingParams({receiver: address(0), duration: 0, amount: 0}),
-                Nft.LockLpParams({amount: 100, price: 1 ether}),
-                Nft.YieldFarmParams({amount: 100, duration: 1 days})
+                BatonLaunchpad.CreateParams({
+                    name: "name",
+                    symbol: "symbol",
+                    categories: categories,
+                    maxMintSupply: 3000,
+                    refundParams: Nft.RefundParams({mintEndTimestamp: 0}),
+                    vestingParams: Nft.VestingParams({receiver: address(0), duration: 0, amount: 0}),
+                    lockLpParams: Nft.LockLpParams({amount: 100, price: 1 ether}),
+                    yieldFarmParams: Nft.YieldFarmParams({amount: 100, duration: 1 days})
+                }),
+                keccak256(abi.encode(123))
             )
         );
 
@@ -261,7 +267,7 @@ contract SeedYieldFarmTest is Test {
         // seed the yield farm
         uint256 amountToLock = 100;
         StolenNftFilterOracle.Message[] memory messages = new StolenNftFilterOracle.Message[](0);
-        vm.expectRevert(Nft.MintNotFinished.selector);
+        vm.expectRevert(Nft.MintNotComplete.selector);
         nft.seedYieldFarm(uint32(amountToLock), messages);
     }
 

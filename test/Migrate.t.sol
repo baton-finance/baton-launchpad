@@ -46,15 +46,17 @@ contract MigrateTest is Test {
         categories[0] = Nft.Category({price: 1 ether, supply: 3000, merkleRoot: bytes32(0)});
         nft = Nft(
             launchpad.create(
-                bytes32(0),
-                "name",
-                "symbol",
-                categories,
-                3000,
-                true,
-                Nft.VestingParams({receiver: address(0), duration: 0, amount: 0}),
-                Nft.LockLpParams({amount: 0, price: 0}),
-                Nft.YieldFarmParams({amount: 1000, duration: 1 days})
+                BatonLaunchpad.CreateParams({
+                    name: "name",
+                    symbol: "symbol",
+                    categories: categories,
+                    maxMintSupply: 3000,
+                    refundParams: Nft.RefundParams({mintEndTimestamp: 0}),
+                    vestingParams: Nft.VestingParams({receiver: address(0), duration: 0, amount: 0}),
+                    lockLpParams: Nft.LockLpParams({amount: 100, price: 1 ether}),
+                    yieldFarmParams: Nft.YieldFarmParams({amount: 1000, duration: 1 days})
+                }),
+                keccak256(abi.encode(123))
             )
         );
 

@@ -28,15 +28,17 @@ contract CreateTest is Test {
         // create the nft
         Nft nft = Nft(
             launchpad.create(
-                bytes32(0),
-                "name",
-                "symbol",
-                categories,
-                3000,
-                true,
-                Nft.VestingParams({receiver: address(0x123), duration: 5 days, amount: 5}),
-                Nft.LockLpParams({amount: 50, price: 1 ether}),
-                Nft.YieldFarmParams({amount: 45, duration: 100 days})
+                BatonLaunchpad.CreateParams({
+                    name: "name",
+                    symbol: "symbol",
+                    categories: categories,
+                    maxMintSupply: 3000,
+                    refundParams: Nft.RefundParams({mintEndTimestamp: 500}),
+                    vestingParams: Nft.VestingParams({receiver: address(0x123), duration: 5 days, amount: 5}),
+                    lockLpParams: Nft.LockLpParams({amount: 50, price: 1 ether}),
+                    yieldFarmParams: Nft.YieldFarmParams({amount: 45, duration: 100 days})
+                }),
+                keccak256(abi.encode(88))
             )
         );
 
@@ -56,7 +58,7 @@ contract CreateTest is Test {
         assertEq(nft.maxMintSupply(), 3000);
 
         // check that the refunds flag was set
-        assertTrue(nft.refunds());
+        assertEq(nft.refundParams().mintEndTimestamp, 500);
 
         // check that the vesting params were set
         assertEq(nft.vestingParams().receiver, address(0x123));
@@ -82,15 +84,17 @@ contract CreateTest is Test {
         // check that it reverts
         vm.expectRevert(Nft.TooManyCategories.selector);
         launchpad.create(
-            bytes32(0),
-            "name",
-            "symbol",
-            categories,
-            3000,
-            true,
-            Nft.VestingParams({receiver: address(0x123), duration: 5 days, amount: 5}),
-            Nft.LockLpParams({amount: 50, price: 1 ether}),
-            Nft.YieldFarmParams({amount: 45, duration: 100 days})
+            BatonLaunchpad.CreateParams({
+                name: "name",
+                symbol: "symbol",
+                categories: categories,
+                maxMintSupply: 3000,
+                refundParams: Nft.RefundParams({mintEndTimestamp: 500}),
+                vestingParams: Nft.VestingParams({receiver: address(0x123), duration: 5 days, amount: 5}),
+                lockLpParams: Nft.LockLpParams({amount: 50, price: 1 ether}),
+                yieldFarmParams: Nft.YieldFarmParams({amount: 45, duration: 100 days})
+            }),
+            keccak256(abi.encode(88))
         );
     }
 }

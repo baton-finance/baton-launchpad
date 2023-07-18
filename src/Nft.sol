@@ -21,15 +21,20 @@ contract Nft is ERC721AUpgradeable, Ownable {
     /// Errors
 
     error TooManyCategories();
-    error CategoryDoesNotExist();
+    error CategoriesNotSortedByPrice();
+    error InvalidVestingParams();
+    error InvalidLockLpParams();
+    error InvalidYieldFarmParams();
     error InvalidEthAmount();
     error InsufficientSupply();
     error InvalidMerkleProof();
     error RefundsNotEnabled();
-    error MintNotFinished();
-    error MintFinished();
+    error MintComplete();
+    error MintNotComplete();
+    error MintExpired();
+    error MintNotExpired();
     error InsufficientVestedAmount();
-    error CategoriesNotSortedByPrice();
+    error VestingNotStarted();
     error InsufficientEthRaisedForLockedLp();
     error LockedLpNotEnabled();
     error InsufficientLpAmount();
@@ -83,6 +88,10 @@ contract Nft is ERC721AUpgradeable, Ownable {
         uint64 duration;
     }
 
+    struct RefundParams {
+        uint64 mintEndTimestamp;
+    }
+
     /// ░░░░░░░░░░░░░░░░░░░░░░░░░
     /// Immutables
 
@@ -97,20 +106,23 @@ contract Nft is ERC721AUpgradeable, Ownable {
     VestingParams internal _vestingParams;
     LockLpParams internal _lockLpParams;
     YieldFarmParams internal _yieldFarmParams;
-    bool public refunds;
+    RefundParams internal _refundParams;
 
     /// ░░░░░░░░░░░░░░░░░░░░░░░░░
     /// State variables
 
     mapping(uint8 categoryIndex => uint256) public minted;
     mapping(address => Account) internal _accounts;
-    uint64 public mintEndTimestamp;
+    uint64 public mintCompleteTimestamp;
     uint32 public totalVestClaimed;
     uint32 public maxMintSupply;
     uint32 public lockedLpSupply;
     BatonFarm public yieldFarm;
     uint32 public seededYieldFarmSupply;
     address public lockedLpMigrationTarget;
+
+    /// ░░░░░░░░░░░░░░░░░░░░░░░░░
+    /// Initializers
 
     constructor(address caviar_, address batonLaunchpad_, address batonFactory_) {
         caviar = Caviar(caviar_);
@@ -119,28 +131,29 @@ contract Nft is ERC721AUpgradeable, Ownable {
     }
 
     /**
-     * @notice Initialize the contract
-     * @param name_ The name of the token
-     * @param symbol_ The symbol of the token
-     * @param owner_ The owner of the contract
-     * @param categories_ The categories of the nfts
-     * @param maxMintSupply_ The max mint supply
-     * @param refunds_ Whether refunds are enabled
-     * @param vestingParams_ The vesting params
-     * @param lockLpParams_ The lock lp params
-     * @param yieldFarmParams_ The yield farm params
+     * @notice Initialize the NFT contract.
+     * @param name_ The name of the NFT.
+     * @param symbol_ The symbol of the NFT.
+     * @param categories_ The categories of the NFT (you must specify at least one category).
+     * @param maxMintSupply_ The max mint supply of the NFT.
+     * @param refundParams_ The refund params (optional).
+     * @param vestingParams_ The vesting params (optional).
+     * @param lockLpParams_ The lock LP params (optional).
+     * @param yieldFarmParams_ The yield farm params of the NFT (optional).
      */
     function initialize(
-        string calldata name_,
-        string calldata symbol_,
+        string memory name_,
+        string memory symbol_,
         address owner_,
-        Category[] calldata categories_,
+        Category[] memory categories_,
         uint32 maxMintSupply_,
-        bool refunds_,
-        VestingParams calldata vestingParams_,
-        LockLpParams calldata lockLpParams_,
-        YieldFarmParams calldata yieldFarmParams_
+        RefundParams memory refundParams_,
+        VestingParams memory vestingParams_,
+        LockLpParams memory lockLpParams_,
+        YieldFarmParams memory yieldFarmParams_
     ) public initializerERC721A {
+        // ✅ Checks ✅
+
         // check that there is less than 256 categories
         if (categories_.length > 256) revert TooManyCategories();
 
@@ -149,6 +162,27 @@ contract Nft is ERC721AUpgradeable, Ownable {
         if (lockLpParams_.amount * lockLpParams_.price > minEthRaised(categories_, maxMintSupply_)) {
             revert InsufficientEthRaisedForLockedLp();
         }
+
+        // check that if the vesting params are set the amount and receiver must not be 0
+        // todo: check that 0 duration vesting works
+        if (
+            (vestingParams_.receiver != address(0) && vestingParams_.amount == 0)
+                || (vestingParams_.receiver == address(0) && vestingParams_.amount != 0)
+        ) revert InvalidVestingParams();
+
+        // check that if the lock lp params are set then the amount and price must not be 0
+        if (
+            (lockLpParams_.amount != 0 && lockLpParams_.price == 0)
+                || (lockLpParams_.amount == 0 && lockLpParams_.price != 0)
+        ) revert InvalidLockLpParams();
+
+        // check that if the yield farm params are set then the amount and duration must not be 0
+        if (
+            (yieldFarmParams_.duration != 0 && yieldFarmParams_.amount == 0)
+                || (yieldFarmParams_.duration == 0 && yieldFarmParams_.amount != 0)
+        ) revert InvalidYieldFarmParams();
+
+        // 👷 Effects 👷
 
         // initialize the ERC721AUpgradeable
         __ERC721A_init(name_, symbol_);
@@ -165,7 +199,7 @@ contract Nft is ERC721AUpgradeable, Ownable {
         maxMintSupply = maxMintSupply_;
 
         // set the refunds flag
-        refunds = refunds_;
+        _refundParams = refundParams_;
 
         // set the vesting params
         _vestingParams = vestingParams_;
@@ -196,6 +230,11 @@ contract Nft is ERC721AUpgradeable, Ownable {
         // check that input amount of nfts to mint is not zero
         if (amount == 0) revert InvalidNftAmount();
 
+        // if refunds are enabled, check that the mint has not expired
+        if (_refundParams.mintEndTimestamp != 0 && block.timestamp > _refundParams.mintEndTimestamp) {
+            revert MintExpired();
+        }
+
         // check that enough eth was sent
         uint256 feeRate = batonLaunchpad.feeRate(); // <-- 🛠️ Early interaction (safe)
         uint256 fee = category.price * amount * feeRate / 1e18;
@@ -220,7 +259,7 @@ contract Nft is ERC721AUpgradeable, Ownable {
 
         // 👷 Effects 👷
 
-        if (refunds) {
+        if (_refundParams.mintEndTimestamp != 0) {
             // track the total minted and available refunds for each account if refunds are enabled
             _accounts[msg.sender].totalMinted += amount;
             _accounts[msg.sender].availableRefund += category.price * amount;
@@ -230,8 +269,8 @@ contract Nft is ERC721AUpgradeable, Ownable {
         _mint(msg.sender, amount);
 
         if (totalSupply() == maxMintSupply) {
-            // set the mint end timestamp if mint is complete
-            mintEndTimestamp = uint64(block.timestamp);
+            // set the mint completion timestamp
+            mintCompleteTimestamp = uint64(block.timestamp);
         }
 
         // 🛠️ Interactions 🛠️
@@ -244,6 +283,8 @@ contract Nft is ERC721AUpgradeable, Ownable {
         emit Mint(msg.sender, amount, category.price);
     }
 
+    // todo: add some invariant tests e.g. should always have enough money to lock the lp
+
     /**
      * @notice Refunds eth to the caller for a specific set of token ids. The refund that they are entitled to is
      * based on how much they spent on minting NFTs. For example, if they spent a total of 5 eth on 5 NFTs then
@@ -255,10 +296,13 @@ contract Nft is ERC721AUpgradeable, Ownable {
         // ✅ Checks ✅
 
         // check that refunds are enabled
-        if (!refunds) revert RefundsNotEnabled();
+        if (_refundParams.mintEndTimestamp == 0) revert RefundsNotEnabled();
 
-        // check that the mint has not finished
-        if (mintEndTimestamp != 0) revert MintFinished();
+        // check that the mint failed to complete
+        if (mintCompleteTimestamp != 0) revert MintComplete();
+
+        // check that the mint has expired
+        if (block.timestamp <= _refundParams.mintEndTimestamp) revert MintNotExpired();
 
         // 👷 Effects 👷
 
@@ -294,8 +338,15 @@ contract Nft is ERC721AUpgradeable, Ownable {
         // check the caller is the vesting receiver
         if (msg.sender != _vestingParams.receiver) revert Unauthorized();
 
-        // check that the mint has finished
-        if (mintEndTimestamp == 0) revert MintNotFinished();
+        // if the mint end timestamp is set then check that the mint has expired, otherwise check that the mint
+        // has completed (fully minted out).
+        if (
+            _refundParams.mintEndTimestamp != 0
+                ? block.timestamp < _refundParams.mintEndTimestamp
+                : mintCompleteTimestamp == 0
+        ) {
+            revert VestingNotStarted();
+        }
 
         // check that there is enough available
         uint256 available = vested() - totalVestClaimed;
@@ -323,8 +374,8 @@ contract Nft is ERC721AUpgradeable, Ownable {
     function lockLp(uint32 amount, StolenNftFilterOracle.Message[] calldata messages) public {
         // ✅ Checks ✅
 
-        // check that the mint has ended
-        if (mintEndTimestamp == 0) revert MintNotFinished();
+        // check that the mint has completed (fully minted out)
+        if (mintCompleteTimestamp == 0) revert MintNotComplete();
 
         // check that locked lp is enabled
         if (_lockLpParams.amount == 0) revert LockedLpNotEnabled();
@@ -380,8 +431,8 @@ contract Nft is ERC721AUpgradeable, Ownable {
         // check that yield farm is enabled
         if (_yieldFarmParams.amount == 0) revert YieldFarmNotEnabled();
 
-        // check that the mint has ended
-        if (mintEndTimestamp == 0) revert MintNotFinished();
+        // check that the mint has completed
+        if (mintCompleteTimestamp == 0) revert MintNotComplete();
 
         // check that locked lp has ended (if locked lp is disabled then 0 == 0 here)
         if (lockedLpSupply != _lockLpParams.amount) revert LpStillBeingLocked();
@@ -447,8 +498,8 @@ contract Nft is ERC721AUpgradeable, Ownable {
     function withdraw() public onlyOwner {
         // ✅ Checks ✅
 
-        // check that the mint has ended
-        if (mintEndTimestamp == 0) revert MintNotFinished();
+        // check that the mint has completed
+        if (mintCompleteTimestamp == 0) revert MintNotComplete();
 
         // check that locked lp has been fully locked (if locked lp is disabled then 0 == 0 here)
         if (lockedLpSupply != _lockLpParams.amount) revert LpStillBeingLocked();
@@ -512,13 +563,17 @@ contract Nft is ERC721AUpgradeable, Ownable {
      * @return The total amount of vested tokens
      */
     function vested() public view returns (uint256) {
-        if (mintEndTimestamp == 0) return 0;
+        // if the mint end timestamp has been set then start vesting at the mint end timestamp, otherwise
+        // start vesting at the mint complete timestamp (when all available nfts have been minted)
+        uint256 vestingStartTimestamp =
+            _refundParams.mintEndTimestamp != 0 ? _refundParams.mintEndTimestamp : mintCompleteTimestamp;
+        if (vestingStartTimestamp == 0 || block.timestamp < vestingStartTimestamp) return 0;
 
         uint256 vestingRate = uint256(_vestingParams.amount) * 1e18 / uint256(_vestingParams.duration);
 
         return FixedPointMathLib.mulDivUp(
             vestingRate,
-            min(block.timestamp, mintEndTimestamp + _vestingParams.duration) - uint256(mintEndTimestamp),
+            min(block.timestamp, vestingStartTimestamp + _vestingParams.duration) - uint256(vestingStartTimestamp),
             1e18
         );
     }
@@ -534,7 +589,7 @@ contract Nft is ERC721AUpgradeable, Ownable {
      * @param availableMintSupply The amount of tokens that are still available to be minted
      * @return The minimum amount of ETH that will be raised if the mint completes
      */
-    function minEthRaised(Category[] calldata categories, uint256 availableMintSupply) public pure returns (uint256) {
+    function minEthRaised(Category[] memory categories, uint256 availableMintSupply) public pure returns (uint256) {
         uint256 minEth = 0;
 
         for (uint256 i = 0; i < categories.length; i++) {
@@ -570,6 +625,10 @@ contract Nft is ERC721AUpgradeable, Ownable {
 
     function yieldFarmParams() public view returns (YieldFarmParams memory) {
         return _yieldFarmParams;
+    }
+
+    function refundParams() public view returns (RefundParams memory) {
+        return _refundParams;
     }
 
     /// ░░░░░░░░░░░░░░░░░░░░░░░░░
