@@ -154,12 +154,7 @@ contract Nft is ERC721AUpgradeable, Ownable {
         LockLpParams memory lockLpParams_,
         YieldFarmParams memory yieldFarmParams_
     ) public initializerERC721A {
-        // ✅ Checks ✅
-
-        // check that there is less than 256 categories
         if (categories_.length > 256) revert TooManyCategories();
-
-        // check that there is at least one category
         if (categories_.length == 0) revert TooFewCategories();
 
         // check that enough eth will be raised from the mint for the locked lp. for example, if there are 100 nfts reserved
@@ -168,55 +163,36 @@ contract Nft is ERC721AUpgradeable, Ownable {
             revert InsufficientEthRaisedForLockedLp();
         }
 
-        // check that if the vesting params are set the amount and receiver must not be 0
         if (
             (vestingParams_.receiver != address(0) && vestingParams_.amount == 0)
                 || (vestingParams_.receiver == address(0) && vestingParams_.amount != 0)
         ) revert InvalidVestingParams();
 
-        // check that if the lock lp params are set then the amount and price must not be 0
         if (
             (lockLpParams_.amount != 0 && lockLpParams_.price == 0)
                 || (lockLpParams_.amount == 0 && lockLpParams_.price != 0)
         ) revert InvalidLockLpParams();
 
-        // check that if the yield farm params are set then the amount and duration must not be 0
         if (
             (yieldFarmParams_.duration != 0 && yieldFarmParams_.amount == 0)
                 || (yieldFarmParams_.duration == 0 && yieldFarmParams_.amount != 0)
         ) revert InvalidYieldFarmParams();
 
-        // check that if the refund params are set then the mint end timestamp must be greater than the current time
         if (refundParams_.mintEndTimestamp != 0 && refundParams_.mintEndTimestamp < block.timestamp) {
             revert InvalidRefundParams();
         }
 
-        // 👷 Effects 👷
-
-        // initialize the ERC721AUpgradeable
         __ERC721A_init(name_, symbol_);
-
-        // initialize the owner
         _initializeOwner(owner_);
 
-        // push all categories
         for (uint256 i = 0; i < categories_.length; i++) {
             _categories.push(categories_[i]);
         }
 
-        // set the max mint supply
         maxMintSupply = maxMintSupply_;
-
-        // set the refunds flag
         _refundParams = refundParams_;
-
-        // set the vesting params
         _vestingParams = vestingParams_;
-
-        // set the lock lp params
         _lockLpParams = lockLpParams_;
-
-        // set the yield farm params
         _yieldFarmParams = yieldFarmParams_;
     }
 
@@ -232,11 +208,6 @@ contract Nft is ERC721AUpgradeable, Ownable {
      * @param proof The merkle proof (if not required then set to be an empty array)
      */
     function mint(uint64 amount, uint8 categoryIndex, bytes32[] calldata proof) public payable {
-        // ✅ Checks ✅
-
-        Category memory category = _categories[categoryIndex];
-
-        // check that input amount of nfts to mint is not zero
         if (amount == 0) revert InvalidNftAmount();
 
         // if refunds are enabled, check that the mint has not expired
@@ -245,12 +216,13 @@ contract Nft is ERC721AUpgradeable, Ownable {
         }
 
         // check that enough eth was sent
-        uint256 feeRate = batonLaunchpad.feeRate(); // <-- 🛠️ Early interaction (safe)
-        uint256 fee = category.price * amount * feeRate / 1e18;
-        if (msg.value != category.price * amount + fee) revert InvalidEthAmount();
+        Category memory category = _categories[categoryIndex];
+        uint256 feeRate = batonLaunchpad.feeRate();
+        uint256 protocolFee = category.price * amount * feeRate / 1e18;
+        if (msg.value != category.price * amount + protocolFee) revert InvalidEthAmount();
 
-        // check that there is enough supply
-        minted[categoryIndex] += amount; // <-- 👷 Early effect (safe)
+        // check that there is enough supply left to mint
+        minted[categoryIndex] += amount;
         if (minted[categoryIndex] > category.supply || totalSupply() + amount > maxMintSupply) {
             revert InsufficientSupply();
         }
@@ -266,33 +238,24 @@ contract Nft is ERC721AUpgradeable, Ownable {
             revert InvalidMerkleProof();
         }
 
-        // 👷 Effects 👷
-
         if (_refundParams.mintEndTimestamp != 0) {
             // track the total minted and available refunds for each account if refunds are enabled
             _accounts[msg.sender].totalMinted += amount;
             _accounts[msg.sender].availableRefund += category.price * amount;
         }
 
-        // mint the tokens to the caller
         _mint(msg.sender, amount);
 
         if (totalSupply() == maxMintSupply) {
-            // set the mint completion timestamp
             mintCompleteTimestamp = uint64(block.timestamp);
         }
 
-        // 🛠️ Interactions 🛠️
-
-        if (fee > 0) {
-            // transfer the protocol fee
-            address(batonLaunchpad).safeTransferETH(fee);
+        if (protocolFee > 0) {
+            address(batonLaunchpad).safeTransferETH(protocolFee);
         }
 
         emit Mint(msg.sender, amount, category.price);
     }
-
-    // todo: add some invariant tests e.g. should always have enough money to lock the lp
 
     /**
      * @notice Refunds eth to the caller for a specific set of token ids. The refund that they are entitled to is
@@ -302,8 +265,6 @@ contract Nft is ERC721AUpgradeable, Ownable {
      * @param tokenIds The token ids to refund
      */
     function refund(uint256[] calldata tokenIds) public {
-        // ✅ Checks ✅
-
         // check that refunds are enabled
         if (_refundParams.mintEndTimestamp == 0) revert RefundsNotEnabled();
 
@@ -313,24 +274,17 @@ contract Nft is ERC721AUpgradeable, Ownable {
         // check that the mint has expired
         if (block.timestamp <= _refundParams.mintEndTimestamp) revert MintNotExpired();
 
-        // 👷 Effects 👷
-
         for (uint256 i = 0; i < tokenIds.length; i++) {
             // burn the token and check the caller owns them
             _burn(tokenIds[i], true);
         }
 
-        // get the total refund amount
         uint256 totalRefundAmount =
             tokenIds.length * _accounts[msg.sender].availableRefund / _accounts[msg.sender].totalMinted;
 
-        // update the account info
         _accounts[msg.sender].totalMinted -= uint128(tokenIds.length);
         _accounts[msg.sender].availableRefund -= uint128(totalRefundAmount);
 
-        // 🛠️ Interactions 🛠️
-
-        // send the refund
         msg.sender.safeTransferETH(totalRefundAmount);
 
         emit Refund(msg.sender, tokenIds.length, totalRefundAmount);
@@ -342,9 +296,6 @@ contract Nft is ERC721AUpgradeable, Ownable {
      * @param amount The amount of NFTs to mint
      */
     function vest(uint256 amount) public {
-        // ✅ Checks ✅
-
-        // check the caller is the vesting receiver
         if (msg.sender != _vestingParams.receiver) revert Unauthorized();
 
         // if the mint end timestamp is set then check that the mint has expired, otherwise check that the mint
@@ -357,16 +308,11 @@ contract Nft is ERC721AUpgradeable, Ownable {
             revert VestingNotStarted();
         }
 
-        // check that there is enough available
         uint256 available = vested() - totalVestClaimed;
         if (amount > available) revert InsufficientVestedAmount();
 
-        // 👷 Effects 👷
-
-        // update the total vest claimed
         totalVestClaimed += uint32(amount);
 
-        // mint the nfts
         _mint(msg.sender, amount);
 
         emit Vest(amount);
@@ -381,21 +327,15 @@ contract Nft is ERC721AUpgradeable, Ownable {
      * @param messages The messages from Reservoir proving that the newly minted NFTs are not stolen
      */
     function lockLp(uint32 amount, StolenNftFilterOracle.Message[] calldata messages) public {
-        // ✅ Checks ✅
-
         // check that the mint has completed (fully minted out)
         if (mintCompleteTimestamp == 0) revert MintNotComplete();
 
         // check that locked lp is enabled
         if (_lockLpParams.amount == 0) revert LockedLpNotEnabled();
 
-        // update the locked lp supply
-        lockedLpSupply += amount; // <-- 👷 Early effect (safe)
-
-        // check that there is enough available
+        // check that there are enough NFTs available to lock
+        lockedLpSupply += amount;
         if (lockedLpSupply > _lockLpParams.amount) revert InsufficientLpAmount();
-
-        // 🛠️ Interactions 🛠️
 
         // if the caviar pair does not exist then create it
         Pair pair = Pair(caviar.pairs(address(this), address(0), bytes32(0)));
@@ -412,7 +352,7 @@ contract Nft is ERC721AUpgradeable, Ownable {
 
         // mint the tokens directly to the pair. this is done to take advantage of ERC721A's
         // amortization of the gas cost of minting. we save a lot of gas by doing this.
-        _mint(address(pair), amount); // <-- 👷 Late effect (safe)
+        _mint(address(pair), amount);
 
         // deposit liquidity into the pair
         // we can ignore the min lp token and price bounds as we are the only ones that can deposit into the pair due
@@ -435,8 +375,6 @@ contract Nft is ERC721AUpgradeable, Ownable {
      * @param messages The messages from Reservoir proving that the newly minted NFTs are not stolen
      */
     function seedYieldFarm(uint32 amount, StolenNftFilterOracle.Message[] calldata messages) public {
-        // ✅ Checks ✅
-
         // check that yield farm is enabled
         if (_yieldFarmParams.amount == 0) revert YieldFarmNotEnabled();
 
@@ -447,10 +385,8 @@ contract Nft is ERC721AUpgradeable, Ownable {
         if (lockedLpSupply != _lockLpParams.amount) revert LpStillBeingLocked();
 
         // check that there are enough nfts available to seed the farm
-        seededYieldFarmSupply += amount; // <-- 👷 Early effect (safe)
+        seededYieldFarmSupply += amount;
         if (seededYieldFarmSupply > _yieldFarmParams.amount) revert InsufficientYieldFarmAmount();
-
-        // 🛠️ Interactions 🛠️
 
         // if the caviar pair does not exist then create it
         Pair pair = Pair(caviar.pairs(address(this), address(0), bytes32(0)));
@@ -465,8 +401,8 @@ contract Nft is ERC721AUpgradeable, Ownable {
             tokenIds[i] = nextTokenId + i;
         }
 
-        // mint the nfts to caviar
-        _mint(address(pair), amount); // <-- 👷 Late effect (safe)
+        // mint the nfts to the pair
+        _mint(address(pair), amount);
 
         // wrap the nfts and get fractional tokens
         bytes32[][] memory proofs = new bytes32[][](0);
@@ -474,7 +410,6 @@ contract Nft is ERC721AUpgradeable, Ownable {
 
         // if the yield farm does not exist then create it
         if (address(yieldFarm) == address(0)) {
-            // approve the baton factory to transfer the tokens
             pair.approve(address(batonFactory), type(uint256).max);
 
             // create the yield farm and seed with some rewards
@@ -490,10 +425,8 @@ contract Nft is ERC721AUpgradeable, Ownable {
                 )
             );
 
-            // approve the yield farm to transfer the tokens
             pair.approve(address(yieldFarm), type(uint256).max);
         } else {
-            // add the tokens to the yield farm
             yieldFarm.notifyRewardAmount(rewardTokenAmount);
         }
 
@@ -505,8 +438,6 @@ contract Nft is ERC721AUpgradeable, Ownable {
      * the liquidity has been locked (if enabled), and the yield farm seeded (if enabled).
      */
     function withdraw() public onlyOwner {
-        // ✅ Checks ✅
-
         // check that the mint has completed
         if (mintCompleteTimestamp == 0) revert MintNotComplete();
 
@@ -531,9 +462,7 @@ contract Nft is ERC721AUpgradeable, Ownable {
      * @param target The address that the locked lp tokens will be migrated to
      */
     function initiateLockedLpMigration(address target) public onlyOwner {
-        // set the destination address for the lp tokens
         lockedLpMigrationTarget = target;
-
         emit InitiateLockedLpMigration(target);
     }
 
@@ -544,8 +473,6 @@ contract Nft is ERC721AUpgradeable, Ownable {
      * @param target The address that the locked lp tokens will be migrated to (must match the address set in initiateLockedLpMigration)
      */
     function migrateLockedLp(address target) public {
-        // ✅ Checks ✅
-
         // check that the caller is the baton owner
         if (msg.sender != batonLaunchpad.owner()) revert Unauthorized();
 
@@ -554,8 +481,6 @@ contract Nft is ERC721AUpgradeable, Ownable {
 
         // check that the migration target matches the target set by the nft owner (this check prevents frontrunning)
         if (target != lockedLpMigrationTarget) revert MigrationTargetNotMatched();
-
-        // 🛠️ Interactions 🛠️
 
         // transfer the lp tokens to the migration target
         LpToken lpToken = Pair(caviar.pairs(address(this), address(0), bytes32(0))).lpToken();
@@ -581,8 +506,10 @@ contract Nft is ERC721AUpgradeable, Ownable {
         // if no vesting duration is set then return the full amount
         if (_vestingParams.duration == 0) return uint256(_vestingParams.amount);
 
+        // calculate the amount to be vested as the following:
+        // vesting_rate = amount / duration
+        // vested_amount = vesting_rate * min(current_timestamp, vesting_start_timestamp + duration) - vesting_start_timestamp
         uint256 vestingRate = uint256(_vestingParams.amount) * 1e18 / uint256(_vestingParams.duration);
-
         return min(
             uint256(_vestingParams.amount),
             FixedPointMathLib.mulDivUp(
