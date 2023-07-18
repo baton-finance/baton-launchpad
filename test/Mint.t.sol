@@ -293,4 +293,32 @@ contract MintTest is Test {
         vm.expectRevert(Nft.InvalidEthAmount.selector);
         nft.mint{value: 0.5 ether}(1, 0, new bytes32[](0));
     }
+
+    function test_RevertIfMintHasExpired() public {
+        // set the categories
+        Nft.Category[] memory categories = new Nft.Category[](1);
+        categories[0] = Nft.Category({price: 1 ether, supply: 100, merkleRoot: bytes32(0)});
+
+        // create the nft
+        Nft nft = Nft(
+            launchpad.create(
+                BatonLaunchpad.CreateParams({
+                    name: "name",
+                    symbol: "symbol",
+                    categories: categories,
+                    maxMintSupply: 100,
+                    refundParams: Nft.RefundParams({mintEndTimestamp: uint64(block.timestamp + 1 days)}),
+                    vestingParams: Nft.VestingParams({receiver: address(0), duration: 0, amount: 0}),
+                    lockLpParams: Nft.LockLpParams({amount: 0, price: 0 ether}),
+                    yieldFarmParams: Nft.YieldFarmParams({amount: 0, duration: 0})
+                }),
+                bytes32(0)
+            )
+        );
+
+        // mint the nft
+        vm.warp(nft.refundParams().mintEndTimestamp + 1);
+        vm.expectRevert(Nft.MintExpired.selector);
+        nft.mint{value: 1 ether}(1, 0, new bytes32[](0));
+    }
 }

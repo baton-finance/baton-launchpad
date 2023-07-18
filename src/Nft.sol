@@ -21,10 +21,12 @@ contract Nft is ERC721AUpgradeable, Ownable {
     /// Errors
 
     error TooManyCategories();
+    error TooFewCategories();
     error CategoriesNotSortedByPrice();
     error InvalidVestingParams();
     error InvalidLockLpParams();
     error InvalidYieldFarmParams();
+    error InvalidRefundParams();
     error InvalidEthAmount();
     error InsufficientSupply();
     error InvalidMerkleProof();
@@ -157,6 +159,9 @@ contract Nft is ERC721AUpgradeable, Ownable {
         // check that there is less than 256 categories
         if (categories_.length > 256) revert TooManyCategories();
 
+        // check that there is at least one category
+        if (categories_.length == 0) revert TooFewCategories();
+
         // check that enough eth will be raised from the mint for the locked lp. for example, if there are 100 nfts reserved
         // for the locked lp at a price of 0.1 eth, then we need to raise at least 10 eth for the locked lp to work.
         if (lockLpParams_.amount * lockLpParams_.price > minEthRaised(categories_, maxMintSupply_)) {
@@ -181,6 +186,11 @@ contract Nft is ERC721AUpgradeable, Ownable {
             (yieldFarmParams_.duration != 0 && yieldFarmParams_.amount == 0)
                 || (yieldFarmParams_.duration == 0 && yieldFarmParams_.amount != 0)
         ) revert InvalidYieldFarmParams();
+
+        // check that if the refund params are set then the mint end timestamp must be greater than the current time
+        if (refundParams_.mintEndTimestamp != 0 && refundParams_.mintEndTimestamp < block.timestamp) {
+            revert InvalidRefundParams();
+        }
 
         // 👷 Effects 👷
 

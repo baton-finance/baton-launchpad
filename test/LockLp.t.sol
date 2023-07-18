@@ -212,7 +212,7 @@ contract LockLpTest is Test {
 
         // try to transfer nfts to the pair
         vm.expectRevert(Nft.LpStillBeingLocked.selector);
-        nft.safeTransferFrom(babe, address(pair), 1);
+        nft.transferFrom(babe, address(pair), 1);
     }
 
     function test_CanTransferAfterLockingIsComplete() public {
@@ -230,7 +230,7 @@ contract LockLpTest is Test {
         nft.lockLp(amountToLock, messages);
 
         // try to transfer nfts to the pair
-        nft.safeTransferFrom(babe, address(pair), 1);
+        nft.transferFrom(babe, address(pair), 1);
 
         // assert that the nft is owned by the pair
         assertEq(nft.ownerOf(1), address(pair));
@@ -275,5 +275,42 @@ contract LockLpTest is Test {
 
         // assert that the locked lp supply was incremented
         assertEq(pair.balanceOf(address(pair)), 1000e18);
+    }
+
+    function test_minEthRaised_CalculatesCorrectAmount() public {
+        // set the categories
+        Nft.Category[] memory categories = new Nft.Category[](4);
+        categories[0] = Nft.Category({price: 0 ether, supply: 50, merkleRoot: bytes32(0)});
+        categories[1] = Nft.Category({price: 1 ether, supply: 210, merkleRoot: bytes32(0)});
+        categories[2] = Nft.Category({price: 1.2 ether, supply: 100, merkleRoot: bytes32(0)});
+        categories[3] = Nft.Category({price: 1.8 ether, supply: 20, merkleRoot: bytes32(0)});
+
+        // available mint supply
+        uint256 availableMintSupply = 300;
+
+        // 50 from category 0 at 0 ether
+        // 210 from category 1 at 1 ether (210 ether)
+        // 40 from category 2 at 1.2 ether (48 ether)
+        // total: 258 ether
+        uint256 expectedAmount = 258 ether;
+
+        // calculate min eth raised
+        uint256 amount = nft.minEthRaised(categories, availableMintSupply);
+
+        // assert that the amount is correct
+        assertEq(amount, expectedAmount);
+    }
+
+    function test_minEthRaised_RevertIf_CategoriesAreNotSortedByPrice() public {
+        // set the categories
+        Nft.Category[] memory categories = new Nft.Category[](4);
+        categories[0] = Nft.Category({price: 0 ether, supply: 50, merkleRoot: bytes32(0)});
+        categories[1] = Nft.Category({price: 2.5 ether, supply: 210, merkleRoot: bytes32(0)});
+        categories[2] = Nft.Category({price: 1.2 ether, supply: 100, merkleRoot: bytes32(0)});
+        categories[3] = Nft.Category({price: 1.8 ether, supply: 20, merkleRoot: bytes32(0)});
+
+        // calculate min eth raised
+        vm.expectRevert(Nft.CategoriesNotSortedByPrice.selector);
+        nft.minEthRaised(categories, 100_000);
     }
 }

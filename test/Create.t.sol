@@ -9,6 +9,8 @@ contract CreateTest is Test {
     BatonLaunchpad launchpad;
     Nft nftImplementation;
 
+    error Unauthorized();
+
     function setUp() public {
         // deploy the launchpad
         launchpad = new BatonLaunchpad(0);
@@ -96,5 +98,176 @@ contract CreateTest is Test {
             }),
             keccak256(abi.encode(88))
         );
+    }
+
+    function test_RevertIf_InvalidYieldFarmParams() public {
+        // set the categories
+        Nft.Category[] memory categories = new Nft.Category[](2);
+        categories[0] = Nft.Category({price: 1 ether, supply: 100, merkleRoot: bytes32(0)});
+        categories[1] = Nft.Category({price: 2 ether, supply: 200, merkleRoot: bytes32(0)});
+
+        // check that it reverts
+        vm.expectRevert(Nft.InvalidYieldFarmParams.selector);
+        launchpad.create(
+            BatonLaunchpad.CreateParams({
+                name: "name",
+                symbol: "symbol",
+                categories: categories,
+                maxMintSupply: 3000,
+                refundParams: Nft.RefundParams({mintEndTimestamp: 500}),
+                vestingParams: Nft.VestingParams({receiver: address(0x123), duration: 5 days, amount: 5}),
+                lockLpParams: Nft.LockLpParams({amount: 50, price: 1 ether}),
+                yieldFarmParams: Nft.YieldFarmParams({amount: 0, duration: 1 days})
+            }),
+            keccak256(abi.encode(88))
+        );
+
+        // check that it reverts
+        vm.expectRevert(Nft.InvalidYieldFarmParams.selector);
+        launchpad.create(
+            BatonLaunchpad.CreateParams({
+                name: "name",
+                symbol: "symbol",
+                categories: categories,
+                maxMintSupply: 3000,
+                refundParams: Nft.RefundParams({mintEndTimestamp: 500}),
+                vestingParams: Nft.VestingParams({receiver: address(0x123), duration: 5 days, amount: 5}),
+                lockLpParams: Nft.LockLpParams({amount: 50, price: 1 ether}),
+                yieldFarmParams: Nft.YieldFarmParams({amount: 100, duration: 0 days})
+            }),
+            keccak256(abi.encode(88))
+        );
+    }
+
+    function test_RevertIf_InvalidLockLpParams() public {
+        // set the categories
+        Nft.Category[] memory categories = new Nft.Category[](2);
+        categories[0] = Nft.Category({price: 1 ether, supply: 100, merkleRoot: bytes32(0)});
+        categories[1] = Nft.Category({price: 2 ether, supply: 200, merkleRoot: bytes32(0)});
+
+        // check that it reverts
+        vm.expectRevert(Nft.InvalidLockLpParams.selector);
+        launchpad.create(
+            BatonLaunchpad.CreateParams({
+                name: "name",
+                symbol: "symbol",
+                categories: categories,
+                maxMintSupply: 3000,
+                refundParams: Nft.RefundParams({mintEndTimestamp: 500}),
+                vestingParams: Nft.VestingParams({receiver: address(0x123), duration: 5 days, amount: 5}),
+                lockLpParams: Nft.LockLpParams({amount: 0, price: 1 ether}),
+                yieldFarmParams: Nft.YieldFarmParams({amount: 0, duration: 0})
+            }),
+            keccak256(abi.encode(88))
+        );
+
+        // check that it reverts
+        vm.expectRevert(Nft.InvalidLockLpParams.selector);
+        launchpad.create(
+            BatonLaunchpad.CreateParams({
+                name: "name",
+                symbol: "symbol",
+                categories: categories,
+                maxMintSupply: 3000,
+                refundParams: Nft.RefundParams({mintEndTimestamp: 500}),
+                vestingParams: Nft.VestingParams({receiver: address(0x123), duration: 5 days, amount: 5}),
+                lockLpParams: Nft.LockLpParams({amount: 100, price: 0}),
+                yieldFarmParams: Nft.YieldFarmParams({amount: 0, duration: 0 days})
+            }),
+            keccak256(abi.encode(88))
+        );
+    }
+
+    function test_RevertIf_InvalidVestingParams() public {
+        // set the categories
+        Nft.Category[] memory categories = new Nft.Category[](2);
+        categories[0] = Nft.Category({price: 1 ether, supply: 100, merkleRoot: bytes32(0)});
+        categories[1] = Nft.Category({price: 2 ether, supply: 200, merkleRoot: bytes32(0)});
+
+        // check that it reverts
+        vm.expectRevert(Nft.InvalidVestingParams.selector);
+        launchpad.create(
+            BatonLaunchpad.CreateParams({
+                name: "name",
+                symbol: "symbol",
+                categories: categories,
+                maxMintSupply: 3000,
+                refundParams: Nft.RefundParams({mintEndTimestamp: 500}),
+                vestingParams: Nft.VestingParams({receiver: address(0), duration: 5 days, amount: 5}),
+                lockLpParams: Nft.LockLpParams({amount: 0, price: 1 ether}),
+                yieldFarmParams: Nft.YieldFarmParams({amount: 0, duration: 0})
+            }),
+            keccak256(abi.encode(88))
+        );
+
+        // check that it reverts
+        vm.expectRevert(Nft.InvalidVestingParams.selector);
+        launchpad.create(
+            BatonLaunchpad.CreateParams({
+                name: "name",
+                symbol: "symbol",
+                categories: categories,
+                maxMintSupply: 3000,
+                refundParams: Nft.RefundParams({mintEndTimestamp: 500}),
+                vestingParams: Nft.VestingParams({receiver: address(0x123), duration: 5 days, amount: 0}),
+                lockLpParams: Nft.LockLpParams({amount: 100, price: 0}),
+                yieldFarmParams: Nft.YieldFarmParams({amount: 0, duration: 0 days})
+            }),
+            keccak256(abi.encode(88))
+        );
+    }
+
+    function test_RevertIf_InvalidRefundEndTimestampIsSmallerThanCurrentTimestamp() public {
+        // set the categories
+        Nft.Category[] memory categories = new Nft.Category[](2);
+        categories[0] = Nft.Category({price: 1 ether, supply: 100, merkleRoot: bytes32(0)});
+        categories[1] = Nft.Category({price: 2 ether, supply: 200, merkleRoot: bytes32(0)});
+
+        // check that it reverts
+        skip(1 days);
+        vm.expectRevert(Nft.InvalidRefundParams.selector);
+        launchpad.create(
+            BatonLaunchpad.CreateParams({
+                name: "name",
+                symbol: "symbol",
+                categories: categories,
+                maxMintSupply: 3000,
+                refundParams: Nft.RefundParams({mintEndTimestamp: uint64(block.timestamp - 1)}),
+                vestingParams: Nft.VestingParams({receiver: address(0x123), duration: 5 days, amount: 10}),
+                lockLpParams: Nft.LockLpParams({amount: 100, price: 1 ether}),
+                yieldFarmParams: Nft.YieldFarmParams({amount: 0, duration: 0 days})
+            }),
+            keccak256(abi.encode(88))
+        );
+    }
+
+    function test_setFeeRate_SetsFeeRate() public {
+        // set the fee rate
+        launchpad.setFeeRate(100);
+
+        // check that the fee rate was set
+        assertEq(launchpad.feeRate(), 100);
+    }
+
+    function test_RevertIf_setFeeRate_CallerIsNotOwner() public {
+        // check that it reverts
+        vm.prank(address(0xdead));
+        vm.expectRevert(Unauthorized.selector);
+        launchpad.setFeeRate(100);
+    }
+
+    function test_setNftImplementation_SetsNftImplementation() public {
+        // set the nft implementation
+        launchpad.setNftImplementation(address(0x123));
+
+        // check that the nft implementation was set
+        assertEq(launchpad.nftImplementation(), address(0x123));
+    }
+
+    function test_RevertIf_setNftImplementation_CallerIsNotOwner() public {
+        // check that it reverts
+        vm.prank(address(0xdead));
+        vm.expectRevert(Unauthorized.selector);
+        launchpad.setNftImplementation(address(0x123));
     }
 }
