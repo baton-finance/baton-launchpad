@@ -215,7 +215,7 @@ contract Nft is ERC721AUpgradeable, Ownable {
             revert MintExpired();
         }
 
-        // check that enough eth was sent
+        // check that enough eth was sent to cover the cost of minting
         Category memory category = _categories[categoryIndex];
         uint256 feeRate = batonLaunchpad.feeRate();
         uint256 protocolFee = category.price * amount * feeRate / 1e18;
@@ -265,17 +265,11 @@ contract Nft is ERC721AUpgradeable, Ownable {
      * @param tokenIds The token ids to refund
      */
     function refund(uint256[] calldata tokenIds) public {
-        // check that refunds are enabled
         if (_refundParams.mintEndTimestamp == 0) revert RefundsNotEnabled();
-
-        // check that the mint failed to complete
         if (mintCompleteTimestamp != 0) revert MintComplete();
-
-        // check that the mint has expired
         if (block.timestamp <= _refundParams.mintEndTimestamp) revert MintNotExpired();
 
         for (uint256 i = 0; i < tokenIds.length; i++) {
-            // burn the token and check the caller owns them
             _burn(tokenIds[i], true);
         }
 
@@ -327,10 +321,7 @@ contract Nft is ERC721AUpgradeable, Ownable {
      * @param messages The messages from Reservoir proving that the newly minted NFTs are not stolen
      */
     function lockLp(uint32 amount, StolenNftFilterOracle.Message[] calldata messages) public {
-        // check that the mint has completed (fully minted out)
         if (mintCompleteTimestamp == 0) revert MintNotComplete();
-
-        // check that locked lp is enabled
         if (_lockLpParams.amount == 0) revert LockedLpNotEnabled();
 
         // check that there are enough NFTs available to lock
@@ -375,10 +366,7 @@ contract Nft is ERC721AUpgradeable, Ownable {
      * @param messages The messages from Reservoir proving that the newly minted NFTs are not stolen
      */
     function seedYieldFarm(uint32 amount, StolenNftFilterOracle.Message[] calldata messages) public {
-        // check that yield farm is enabled
         if (_yieldFarmParams.amount == 0) revert YieldFarmNotEnabled();
-
-        // check that the mint has completed
         if (mintCompleteTimestamp == 0) revert MintNotComplete();
 
         // check that locked lp has ended (if locked lp is disabled then 0 == 0 here)
@@ -401,7 +389,8 @@ contract Nft is ERC721AUpgradeable, Ownable {
             tokenIds[i] = nextTokenId + i;
         }
 
-        // mint the nfts to the pair
+        // mint the tokens directly to the pair. this is done to take advantage of ERC721A's
+        // amortization of the gas cost of minting. we save a lot of gas by doing this.
         _mint(address(pair), amount);
 
         // wrap the nfts and get fractional tokens
@@ -438,7 +427,6 @@ contract Nft is ERC721AUpgradeable, Ownable {
      * the liquidity has been locked (if enabled), and the yield farm seeded (if enabled).
      */
     function withdraw() public onlyOwner {
-        // check that the mint has completed
         if (mintCompleteTimestamp == 0) revert MintNotComplete();
 
         // check that locked lp has been fully locked (if locked lp is disabled then 0 == 0 here)
@@ -473,10 +461,7 @@ contract Nft is ERC721AUpgradeable, Ownable {
      * @param target The address that the locked lp tokens will be migrated to (must match the address set in initiateLockedLpMigration)
      */
     function migrateLockedLp(address target) public {
-        // check that the caller is the baton owner
         if (msg.sender != batonLaunchpad.owner()) revert Unauthorized();
-
-        // check that the migration target has been set by the nft owner
         if (lockedLpMigrationTarget == address(0)) revert MigrationNotInitiated();
 
         // check that the migration target matches the target set by the nft owner (this check prevents frontrunning)
@@ -538,11 +523,9 @@ contract Nft is ERC721AUpgradeable, Ownable {
             // check that the categories are sorted by price
             if (i != 0 && categories[i - 1].price > categories[i].price) revert CategoriesNotSortedByPrice();
 
-            // add to the total min eth raised
             minEth += categories[i].price * min(categories[i].supply, availableMintSupply);
             availableMintSupply -= min(categories[i].supply, availableMintSupply);
 
-            // break if there is no more available mint supply
             if (availableMintSupply == 0) break;
         }
 
