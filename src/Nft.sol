@@ -169,7 +169,6 @@ contract Nft is ERC721AUpgradeable, Ownable {
         }
 
         // check that if the vesting params are set the amount and receiver must not be 0
-        // todo: check that 0 duration vesting works
         if (
             (vestingParams_.receiver != address(0) && vestingParams_.amount == 0)
                 || (vestingParams_.receiver == address(0) && vestingParams_.amount != 0)
@@ -579,12 +578,18 @@ contract Nft is ERC721AUpgradeable, Ownable {
             _refundParams.mintEndTimestamp != 0 ? _refundParams.mintEndTimestamp : mintCompleteTimestamp;
         if (vestingStartTimestamp == 0 || block.timestamp < vestingStartTimestamp) return 0;
 
+        // if no vesting duration is set then return the full amount
+        if (_vestingParams.duration == 0) return uint256(_vestingParams.amount);
+
         uint256 vestingRate = uint256(_vestingParams.amount) * 1e18 / uint256(_vestingParams.duration);
 
-        return FixedPointMathLib.mulDivUp(
-            vestingRate,
-            min(block.timestamp, vestingStartTimestamp + _vestingParams.duration) - uint256(vestingStartTimestamp),
-            1e18
+        return min(
+            uint256(_vestingParams.amount),
+            FixedPointMathLib.mulDivUp(
+                vestingRate,
+                min(block.timestamp, vestingStartTimestamp + _vestingParams.duration) - uint256(vestingStartTimestamp),
+                1e18
+            )
         );
     }
 

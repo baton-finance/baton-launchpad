@@ -96,6 +96,41 @@ contract VestTest is Test {
         assertEq(nft.totalVestClaimed(), totalVestClaimedBefore + 10);
     }
 
+    function test_VestsWithZeroDuration() public {
+        // create the nft
+        // set the categories
+        skip(5 days);
+        vm.startPrank(babe);
+        Nft.Category[] memory categories = new Nft.Category[](1);
+        categories[0] = Nft.Category({price: 0.01 ether, supply: 10, merkleRoot: bytes32(0)});
+        vestingParams = Nft.VestingParams({receiver: address(babe), duration: 0 days, amount: 300});
+        nft = Nft(
+            launchpad.create(
+                BatonLaunchpad.CreateParams({
+                    name: "name",
+                    symbol: "symbol",
+                    categories: categories,
+                    maxMintSupply: 10,
+                    refundParams: Nft.RefundParams({mintEndTimestamp: 0}),
+                    vestingParams: vestingParams,
+                    lockLpParams: Nft.LockLpParams({amount: 0, price: 0 ether}),
+                    yieldFarmParams: Nft.YieldFarmParams({amount: 0, duration: 0})
+                }),
+                keccak256(abi.encode(222))
+            )
+        );
+
+        // mint the nft
+        uint256 amount = 10;
+        nft.mint{value: amount * nft.categories(0).price}(uint64(amount), 0, new bytes32[](0));
+
+        // claim the vested nfts
+        nft.vest(300);
+
+        // assert that the totalVestClaimed was updated
+        assertEq(nft.totalVestClaimed(), 300);
+    }
+
     function test_RevertIfInsufficientAmountVested() public {
         vm.startPrank(babe);
 
