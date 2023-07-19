@@ -204,7 +204,7 @@ contract MintTest is Test {
         nft.mint{value: 1 ether}(1, 0, new bytes32[](0));
     }
 
-    function test_MintsWithMerkleProof() public {
+    function test_ffi_MintsWithMerkleProof() public {
         // set the categories
         Nft.Category[] memory categories = new Nft.Category[](1);
         categories[0] = Nft.Category({price: 1 ether, supply: 100, merkleRoot: generateMerkleRoot()});
