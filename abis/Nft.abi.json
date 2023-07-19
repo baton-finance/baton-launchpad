@@ -42,11 +42,6 @@
   },
   {
     "inputs": [],
-    "name": "CategoryDoesNotExist",
-    "type": "error"
-  },
-  {
-    "inputs": [],
     "name": "InsufficientEthRaisedForLockedLp",
     "type": "error"
   },
@@ -77,12 +72,32 @@
   },
   {
     "inputs": [],
+    "name": "InvalidLockLpParams",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "InvalidMerkleProof",
     "type": "error"
   },
   {
     "inputs": [],
     "name": "InvalidNftAmount",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidRefundParams",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidVestingParams",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidYieldFarmParams",
     "type": "error"
   },
   {
@@ -107,17 +122,27 @@
   },
   {
     "inputs": [],
+    "name": "MintComplete",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "MintERC2309QuantityExceedsLimit",
     "type": "error"
   },
   {
     "inputs": [],
-    "name": "MintFinished",
+    "name": "MintExpired",
     "type": "error"
   },
   {
     "inputs": [],
-    "name": "MintNotFinished",
+    "name": "MintNotComplete",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "MintNotExpired",
     "type": "error"
   },
   {
@@ -157,6 +182,11 @@
   },
   {
     "inputs": [],
+    "name": "TooFewCategories",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "TooManyCategories",
     "type": "error"
   },
@@ -188,6 +218,11 @@
   {
     "inputs": [],
     "name": "Unauthorized",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "VestingNotStarted",
     "type": "error"
   },
   {
@@ -724,9 +759,16 @@
         "type": "uint32"
       },
       {
-        "internalType": "bool",
-        "name": "refunds_",
-        "type": "bool"
+        "components": [
+          {
+            "internalType": "uint64",
+            "name": "mintEndTimestamp",
+            "type": "uint64"
+          }
+        ],
+        "internalType": "struct Nft.RefundParams",
+        "name": "refundParams_",
+        "type": "tuple"
       },
       {
         "components": [
@@ -1010,7 +1052,7 @@
   },
   {
     "inputs": [],
-    "name": "mintEndTimestamp",
+    "name": "mintCompleteTimestamp",
     "outputs": [
       {
         "internalType": "uint64",
@@ -1132,12 +1174,19 @@
   },
   {
     "inputs": [],
-    "name": "refunds",
+    "name": "refundParams",
     "outputs": [
       {
-        "internalType": "bool",
+        "components": [
+          {
+            "internalType": "uint64",
+            "name": "mintEndTimestamp",
+            "type": "uint64"
+          }
+        ],
+        "internalType": "struct Nft.RefundParams",
         "name": "",
-        "type": "bool"
+        "type": "tuple"
       }
     ],
     "stateMutability": "view",

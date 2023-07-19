@@ -19,6 +19,20 @@ Testing
 forge test  -vvv --gas-report --watch
 ```
 
+## Contracts overview
+
+| Contract                                       | LOC | Description                                                   |
+| ---------------------------------------------- | --- | ------------------------------------------------------------- |
+| [BatonLaunchpad.sol](./src/BatonLaunchpad.sol) | 44  | Factory contract that creates Nfts                            |
+| [Nft.sol](./src/Nft.sol)                       | 340 | Nft contract that contains logic for the the core feature set |
+
+## Deployments
+
+| Contract                    | Address                                                                                                                      |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| BatonLaunchpad.sol (goerli) | [0xbA82BA626e36531d014B3D906F61Fe9CAba6e09f](https://goerli.etherscan.io/address/0xbA82BA626e36531d014B3D906F61Fe9CAba6e09f) |
+| Nft.sol (goerli)            | [0x15Ad24D60685Ce93cE16601E6BfA42d725DC59cd](https://goerli.etherscan.io/address/0x15Ad24D60685Ce93cE16601E6BfA42d725DC59cd) |
+
 ## Contents
 
 - [High level overview](#high-level-overview)

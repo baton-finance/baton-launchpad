@@ -93,107 +93,121 @@
   {
     "inputs": [
       {
+        "components": [
+          {
+            "internalType": "string",
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "symbol",
+            "type": "string"
+          },
+          {
+            "components": [
+              {
+                "internalType": "uint128",
+                "name": "price",
+                "type": "uint128"
+              },
+              {
+                "internalType": "uint128",
+                "name": "supply",
+                "type": "uint128"
+              },
+              {
+                "internalType": "bytes32",
+                "name": "merkleRoot",
+                "type": "bytes32"
+              }
+            ],
+            "internalType": "struct Nft.Category[]",
+            "name": "categories",
+            "type": "tuple[]"
+          },
+          {
+            "internalType": "uint32",
+            "name": "maxMintSupply",
+            "type": "uint32"
+          },
+          {
+            "components": [
+              {
+                "internalType": "uint64",
+                "name": "mintEndTimestamp",
+                "type": "uint64"
+              }
+            ],
+            "internalType": "struct Nft.RefundParams",
+            "name": "refundParams",
+            "type": "tuple"
+          },
+          {
+            "components": [
+              {
+                "internalType": "address",
+                "name": "receiver",
+                "type": "address"
+              },
+              {
+                "internalType": "uint64",
+                "name": "duration",
+                "type": "uint64"
+              },
+              {
+                "internalType": "uint32",
+                "name": "amount",
+                "type": "uint32"
+              }
+            ],
+            "internalType": "struct Nft.VestingParams",
+            "name": "vestingParams",
+            "type": "tuple"
+          },
+          {
+            "components": [
+              {
+                "internalType": "uint32",
+                "name": "amount",
+                "type": "uint32"
+              },
+              {
+                "internalType": "uint128",
+                "name": "price",
+                "type": "uint128"
+              }
+            ],
+            "internalType": "struct Nft.LockLpParams",
+            "name": "lockLpParams",
+            "type": "tuple"
+          },
+          {
+            "components": [
+              {
+                "internalType": "uint32",
+                "name": "amount",
+                "type": "uint32"
+              },
+              {
+                "internalType": "uint64",
+                "name": "duration",
+                "type": "uint64"
+              }
+            ],
+            "internalType": "struct Nft.YieldFarmParams",
+            "name": "yieldFarmParams",
+            "type": "tuple"
+          }
+        ],
+        "internalType": "struct BatonLaunchpad.CreateParams",
+        "name": "createParams",
+        "type": "tuple"
+      },
+      {
         "internalType": "bytes32",
         "name": "salt",
         "type": "bytes32"
-      },
-      {
-        "internalType": "string",
-        "name": "name",
-        "type": "string"
-      },
-      {
-        "internalType": "string",
-        "name": "symbol",
-        "type": "string"
-      },
-      {
-        "components": [
-          {
-            "internalType": "uint128",
-            "name": "price",
-            "type": "uint128"
-          },
-          {
-            "internalType": "uint128",
-            "name": "supply",
-            "type": "uint128"
-          },
-          {
-            "internalType": "bytes32",
-            "name": "merkleRoot",
-            "type": "bytes32"
-          }
-        ],
-        "internalType": "struct Nft.Category[]",
-        "name": "categories",
-        "type": "tuple[]"
-      },
-      {
-        "internalType": "uint32",
-        "name": "maxMintSupply",
-        "type": "uint32"
-      },
-      {
-        "internalType": "bool",
-        "name": "refunds",
-        "type": "bool"
-      },
-      {
-        "components": [
-          {
-            "internalType": "address",
-            "name": "receiver",
-            "type": "address"
-          },
-          {
-            "internalType": "uint64",
-            "name": "duration",
-            "type": "uint64"
-          },
-          {
-            "internalType": "uint32",
-            "name": "amount",
-            "type": "uint32"
-          }
-        ],
-        "internalType": "struct Nft.VestingParams",
-        "name": "vestingParams",
-        "type": "tuple"
-      },
-      {
-        "components": [
-          {
-            "internalType": "uint32",
-            "name": "amount",
-            "type": "uint32"
-          },
-          {
-            "internalType": "uint128",
-            "name": "price",
-            "type": "uint128"
-          }
-        ],
-        "internalType": "struct Nft.LockLpParams",
-        "name": "lockLpParams",
-        "type": "tuple"
-      },
-      {
-        "components": [
-          {
-            "internalType": "uint32",
-            "name": "amount",
-            "type": "uint32"
-          },
-          {
-            "internalType": "uint64",
-            "name": "duration",
-            "type": "uint64"
-          }
-        ],
-        "internalType": "struct Nft.YieldFarmParams",
-        "name": "yieldFarmParams",
-        "type": "tuple"
       }
     ],
     "name": "create",

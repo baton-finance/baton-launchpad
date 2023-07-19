@@ -2,7 +2,6 @@
 @manifoldxyz/libraries-solidity/=lib/caviar/lib/royalty-registry-solidity/lib/libraries-solidity/
 @openzeppelin/=lib/baton-contracts/lib/openzeppelin-contracts/
 @openzeppelin/contracts-upgradeable/=lib/caviar/lib/royalty-registry-solidity/lib/openzeppelin-contracts-upgradeable/contracts/
-@openzeppelin/contracts/=lib/caviar/lib/royalty-registry-solidity/lib/openzeppelin-contracts/contracts/
 @prb/test/=lib/baton-contracts/lib/prb-test/src/
 @reservoir/oracle/=lib/baton-contracts/lib/oracle/
 @weth/=lib/baton-contracts/lib/canonical-weth/
