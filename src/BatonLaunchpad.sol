@@ -8,6 +8,8 @@ import {Nft} from "./Nft.sol";
 contract BatonLaunchpad is Ownable {
     using LibClone for address;
 
+    event Create(address indexed nft);
+
     /**
      * @dev Use a struct to avoid "stack too deep" error.
      * @param name The name of the NFT.
@@ -63,6 +65,8 @@ contract BatonLaunchpad is Ownable {
             createParams.lockLpParams,
             createParams.yieldFarmParams
         );
+
+        emit Create(address(nft));
     }
 
     /**
