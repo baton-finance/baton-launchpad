@@ -1,11 +1,12 @@
 [profile.default]
 src = "src"
 out = "out"
-libs = ['lib', 'lib/caviar/lib/royalty-registry-solidity/contracts/']
+libs = ['lib']
 solc = "0.8.19"
 ffi = true
 auto_detect_remappings = false
+gas_reports = ["BatonLaunchpad", "Nft"]
 
 [invariant]
-runs = 4096
+runs = 256
 depth = 64

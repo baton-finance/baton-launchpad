@@ -9,6 +9,7 @@ Installation
 ```
 foundryup
 git clone git@github.com:baton-finance/baton-launchpad.git
+cd baton-launchpad
 forge install
 npm install
 ```
