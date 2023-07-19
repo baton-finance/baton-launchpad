@@ -493,7 +493,7 @@ contract Nft is ERC721AUpgradeable, Ownable {
 
         // calculate the amount to be vested as the following:
         // vesting_rate = amount / duration
-        // vested_amount = vesting_rate * min(current_timestamp, vesting_start_timestamp + duration) - vesting_start_timestamp
+        // vested_amount = vesting_rate * (min(current_time, vesting_end_time) - vesting_start_time)
         uint256 vestingRate = uint256(_vestingParams.amount) * 1e18 / uint256(_vestingParams.duration);
         return min(
             uint256(_vestingParams.amount),

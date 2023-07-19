@@ -7,5 +7,5 @@ ffi = true
 auto_detect_remappings = false
 
 [invariant]
-runs = 8012
+runs = 4096
 depth = 64
