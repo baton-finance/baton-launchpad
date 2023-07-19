@@ -1,10 +1,10 @@
-# Baton Launchpad 🏇
+# Baton Launchpad 🏇🏇🏇
 
 Baton Launchpad is an NFT launchpad that integrates financial tooling to help creators and collectors create liquid markets around their NFTs.
 
 ## Quick start
 
-Installation:
+Installation
 
 ```
 foundryup
@@ -13,11 +13,22 @@ forge install
 npm install
 ```
 
-Testing:
+Testing
 
 ```
 forge test  -vvv --gas-report --watch
 ```
+
+## Contents
+
+- [High level overview](#high-level-overview)
+- [Technical overview](#technical-overview)
+  - [Creation](#creation)
+  - [Minting](#minting)
+  - [Refunds](#refunds)
+  - [Vesting](#vesting)
+  - [Locked liquidity](#locked-liquidity)
+  - [Yield farming](#yield-farming)
 
 ## High level overview
 
