@@ -22,13 +22,23 @@ forge test  -vvv --gas-report --watch
 ## Contents
 
 - [High level overview](#high-level-overview)
+  - [Refunds](#refunds)
+  - [Staggered mints](#staggered-mints)
+  - [Locked liquidity](#locked-liquidity)
+  - [Yield farming](#yield-farming)
+  - [Vesting](#vesting)
 - [Technical overview](#technical-overview)
   - [Creation](#creation)
   - [Minting](#minting)
-  - [Refunds](#refunds)
-  - [Vesting](#vesting)
-  - [Locked liquidity](#locked-liquidity)
-  - [Yield farming](#yield-farming)
+  - [Refunds](#refunds-1)
+  - [Vesting](#vesting-1)
+  - [Locked liquidity](#locked-liquidity-1)
+  - [Yield farming](#yield-farming-1)
+  - [Owner withdrawals](#owner-withdrawals)
+  - [Locked liquidity migrations](#locked-liquidity-migrations)
+  - [Leveraging ERC271A to save gas](#leveraging-erc271a-to-save-gas)
+
+---
 
 ## High level overview
 
@@ -54,6 +64,8 @@ To further incentivize liquidity on the secondary market, creators can also allo
 
 Vesting allows creators to specify a vesting schedule for NFTs that are allocated to the team, investors, or other parties. This allows creators to ensure that NFTs are not dumped on the secondary market immediately after the mint completes. The vesting schedule can be configured by the creator. Vesting will start after the mint completes or when the mint end date has passed.
 
+---
+
 ## Technical overview
 
 ### Creation
@@ -74,7 +86,7 @@ If vesting is enabled then, following a successful or expired mint, the vesting 
 
 ### Locked liquidity
 
-If locked liquidity is enabled, then following a successful mint, the locked liquidity process is activated. Anybody can call the lockLp function with a specific amount of NFTs to lock. The amount of NFTs must be less than or equal to the amount of NFTs that are allocated to locked liquidity. The amount of ETH that is allocated to the liquidity pool is calculated as: `amount_of_nfts_to_lock * locked_liquidity_price`. If a liquidity pool for the NFT has not been created yet, then the lockLp function will attempt to create one. Following the creation of the pair, the `amount_of_nfts_to_lock` is then minted directly to the pair contract before calling the `pair.nftAdd` function. Normally, the pair would attempt to `safeTransferFrom` the NFTs from the caller, but we have provided an override that will skip the state transition in the `transferFrom` method. This is done as a gas optimization. For a deeper explanation please read the Minting optimizations section.
+If locked liquidity is enabled, then following a successful mint, the locked liquidity process is activated. Anybody can call the lockLp function with a specific amount of NFTs to lock. The amount of NFTs must be less than or equal to the amount of NFTs that are allocated to locked liquidity. The amount of ETH that is allocated to the liquidity pool is calculated as: `amount_of_nfts_to_lock * locked_liquidity_price`. If a liquidity pool for the NFT has not been created yet, then the lockLp function will attempt to create one. Following the creation of the pair, the `amount_of_nfts_to_lock` is then minted directly to the pair contract before calling the `pair.nftAdd` function. Normally, the pair would attempt to `safeTransferFrom` the NFTs from the caller, but we have provided an override that will skip the state transition in the `transferFrom` method. This is done as a gas optimization. For a deeper explanation please read the [Leveraging ERC271A to save gas](#leveraging-erc721a-to-save-gas) section.
 
 When the liquidity is added we also skip all slippage checks. This is fine because transfers of the NFT to the pair contract are disabled in the `transferFrom` method until the liquidity has finished locking. This means that the Nft contract is the only one that can deposit liquidity, so frontrunning (and therefore the need for slippage checks) is not an issue.
 
@@ -90,7 +102,7 @@ Following the completion of a succesful mint, liquidity locking (if enabled), an
 
 There is an escape hatch for locked liquidity that allows the LP tokens to be migrated to a different contract. In order for a migration to be completed, there are two steps. First, the owner of the contract initiates a migration via `initiateLockedLpMigration` and specifies an intended target address. Then, after review from the Baton team, the Baton admin can call `migrateLockedLp` with the target address. This will transfer the LP tokens to the target address. This requires two steps to prevent a malicious owner from migrating the LP tokens to an address that they control. The purpose of this is to allow for liquidity to be migrated to newer versions of pools that may be more capital efficient or have some other benefit.
 
-### Leveraging ERC271A to save gas <a name="leveraging-erc721a-to-save-gas"></a>
+### Leveraging ERC271A to save gas
 
 [ERC721A](https://github.com/chiru-labs/ERC721A) is a library that amortizes the gas cost when minting a given amount of NFTs. To utilize these optimizations we have tuned the `lockLp` and `seedYieldFarm` functions. These functions may reasonably attempt to transfer 1000's of NFTs into a liquidity pool or yield farm. This would normally be prohibitively expensive, but with ERC721A we can amortize the cost of minting the NFTs over the entire batch. This allows us to save a significant amount of gas. In order to do this, we have had to make a few changes.
 
