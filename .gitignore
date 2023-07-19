@@ -18,3 +18,4 @@ broadcast/
 coverage-report/
 
 .DS_Store
+lcov.info

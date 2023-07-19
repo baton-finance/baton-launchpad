@@ -201,7 +201,7 @@ contract Nft is ERC721AUpgradeable, Ownable {
 
     /**
      * @notice Mints an amount of NFTs to the caller from a specific category. The caller must pay
-     * the price that is specified in the category and if there is a whitelist associated with the
+     * the price that is categoriesspecified in the category and if there is a whitelist associated with the
      * category then they must also submit a merkle proof showing that they are in the whitelist.
      * @param amount The amount of NFTs to mint
      * @param categoryIndex The index of the category to mint from

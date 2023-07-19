@@ -15,6 +15,7 @@ contract LockLpTest is Test {
     error OwnerQueryForNonexistentToken();
 
     address babe = address(0xbabe);
+    address cafe = address(0xcafe);
     BatonLaunchpad launchpad;
     Nft nftImplementation;
     Nft nft;
@@ -313,9 +314,4 @@ contract LockLpTest is Test {
         vm.expectRevert(Nft.CategoriesNotSortedByPrice.selector);
         nft.minEthRaised(categories, 100_000);
     }
-
-    // invariant test that checks there is always enough money to lock the lp
-    // if the mint is complete
-    // and the lock lp amount is not 0
-    // then balance in the contract > the amount of lp that is left to lock * lock lp price
 }

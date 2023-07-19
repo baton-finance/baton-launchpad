@@ -5,3 +5,7 @@ libs = ['lib', 'lib/caviar/lib/royalty-registry-solidity/contracts/']
 solc = "0.8.19"
 ffi = true
 auto_detect_remappings = false
+
+[invariant]
+runs = 8012
+depth = 64
