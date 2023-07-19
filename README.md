@@ -17,7 +17,7 @@ npm install
 Testing
 
 ```
-forge test  -vvv --gas-report --watch
+forge test  -vvv --gas-report
 ```
 
 ## Contracts overview

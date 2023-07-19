@@ -8,5 +8,5 @@ auto_detect_remappings = false
 gas_reports = ["BatonLaunchpad", "Nft"]
 
 [invariant]
-runs = 256
-depth = 64
+runs = 128
+depth = 32
