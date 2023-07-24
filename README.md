@@ -7,9 +7,9 @@ Baton Launchpad is an NFT launchpad that integrates financial tooling to help cr
 Installation
 
 ```
-foundryup
 git clone git@github.com:baton-finance/baton-launchpad.git
 cd baton-launchpad
+foundryup
 forge install
 npm install
 ```
