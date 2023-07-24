@@ -104,6 +104,7 @@ contract InvariantTest is Test {
             address(this),
             categories,
             3000,
+            0,
             Nft.RefundParams({mintEndTimestamp: uint64(block.timestamp + 2 days)}),
             Nft.VestingParams({receiver: address(0x123), duration: 15 days, amount: 200}),
             Nft.LockLpParams({amount: 1000, price: 1 ether}),

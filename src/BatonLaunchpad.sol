@@ -27,6 +27,7 @@ contract BatonLaunchpad is Ownable {
         string symbol;
         Nft.Category[] categories;
         uint32 maxMintSupply;
+        uint96 royaltyRate;
         Nft.RefundParams refundParams;
         Nft.VestingParams vestingParams;
         Nft.LockLpParams lockLpParams;
@@ -60,6 +61,7 @@ contract BatonLaunchpad is Ownable {
             msg.sender,
             createParams.categories,
             createParams.maxMintSupply,
+            createParams.royaltyRate,
             createParams.refundParams,
             createParams.vestingParams,
             createParams.lockLpParams,

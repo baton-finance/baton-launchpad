@@ -6,6 +6,7 @@ import {MerkleProofLib} from "solady/utils/MerkleProofLib.sol";
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 import {FixedPointMathLib} from "solady/utils/FixedPointMathLib.sol";
 import {Ownable} from "solady/auth/Ownable.sol";
+import {ERC2981} from "solady/tokens/ERC2981.sol";
 import {Caviar, StolenNftFilterOracle} from "caviar/Caviar.sol";
 import {Pair} from "caviar/Pair.sol";
 import {LpToken} from "caviar/LpToken.sol";
@@ -14,7 +15,7 @@ import {BatonFactory} from "baton-contracts/BatonFactory.sol";
 
 import {BatonLaunchpad} from "./BatonLaunchpad.sol";
 
-contract Nft is ERC721AUpgradeable, Ownable {
+contract Nft is ERC721AUpgradeable, Ownable, ERC2981 {
     using SafeTransferLib for address;
 
     /// ░░░░░░░░░░░░░░░░░░░░░░░░░
@@ -149,6 +150,7 @@ contract Nft is ERC721AUpgradeable, Ownable {
         address owner_,
         Category[] memory categories_,
         uint32 maxMintSupply_,
+        uint96 royaltyRate,
         RefundParams memory refundParams_,
         VestingParams memory vestingParams_,
         LockLpParams memory lockLpParams_,
@@ -184,6 +186,7 @@ contract Nft is ERC721AUpgradeable, Ownable {
 
         __ERC721A_init(name_, symbol_);
         _initializeOwner(owner_);
+        _setDefaultRoyalty(owner_, royaltyRate);
 
         for (uint256 i = 0; i < categories_.length; i++) {
             _categories.push(categories_[i]);
@@ -599,5 +602,14 @@ contract Nft is ERC721AUpgradeable, Ownable {
         }
 
         super.transferFrom(from, to, tokenId);
+    }
+
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(ERC2981, ERC721AUpgradeable)
+        returns (bool result)
+    {
+        return ERC2981.supportsInterface(interfaceId) || ERC721AUpgradeable.supportsInterface(interfaceId);
     }
 }

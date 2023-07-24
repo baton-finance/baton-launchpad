@@ -51,6 +51,7 @@ contract MigrateTest is Test {
                     symbol: "symbol",
                     categories: categories,
                     maxMintSupply: 3000,
+                    royaltyRate: 0,
                     refundParams: Nft.RefundParams({mintEndTimestamp: 0}),
                     vestingParams: Nft.VestingParams({receiver: address(0), duration: 0, amount: 0}),
                     lockLpParams: Nft.LockLpParams({amount: 100, price: 1 ether}),

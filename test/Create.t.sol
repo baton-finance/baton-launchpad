@@ -35,6 +35,7 @@ contract CreateTest is Test {
                     symbol: "symbol",
                     categories: categories,
                     maxMintSupply: 3000,
+                    royaltyRate: 100, // 1%
                     refundParams: Nft.RefundParams({mintEndTimestamp: 500}),
                     vestingParams: Nft.VestingParams({receiver: address(0x123), duration: 5 days, amount: 5}),
                     lockLpParams: Nft.LockLpParams({amount: 50, price: 1 ether}),
@@ -77,6 +78,41 @@ contract CreateTest is Test {
 
         // check that the owner was set
         assertEq(nft.owner(), address(this));
+
+        // check the royalty rate
+        (address receiver, uint256 royaltyAmount) = nft.royaltyInfo(0, 100_000);
+        assertEq(royaltyAmount, 1000);
+        assertEq(receiver, address(this));
+    }
+
+    function test_CreatesWithZeroRoyalty() public {
+        // set the categories
+        Nft.Category[] memory categories = new Nft.Category[](2);
+        categories[0] = Nft.Category({price: 1 ether, supply: 100, merkleRoot: bytes32(0)});
+        categories[1] = Nft.Category({price: 2 ether, supply: 200, merkleRoot: bytes32(0)});
+
+        // create the nft
+        Nft nft = Nft(
+            launchpad.create(
+                BatonLaunchpad.CreateParams({
+                    name: "name",
+                    symbol: "symbol",
+                    categories: categories,
+                    maxMintSupply: 3000,
+                    royaltyRate: 0,
+                    refundParams: Nft.RefundParams({mintEndTimestamp: 500}),
+                    vestingParams: Nft.VestingParams({receiver: address(0x123), duration: 5 days, amount: 5}),
+                    lockLpParams: Nft.LockLpParams({amount: 50, price: 1 ether}),
+                    yieldFarmParams: Nft.YieldFarmParams({amount: 45, duration: 100 days})
+                }),
+                keccak256(abi.encode(88))
+            )
+        );
+
+        // check the royalty rate
+        (address receiver, uint256 royaltyAmount) = nft.royaltyInfo(0, 100_000);
+        assertEq(royaltyAmount, 0);
+        assertEq(receiver, address(this));
     }
 
     function test_RevertIfTooManyCategories() public {
@@ -91,6 +127,7 @@ contract CreateTest is Test {
                 symbol: "symbol",
                 categories: categories,
                 maxMintSupply: 3000,
+                royaltyRate: 0,
                 refundParams: Nft.RefundParams({mintEndTimestamp: 500}),
                 vestingParams: Nft.VestingParams({receiver: address(0x123), duration: 5 days, amount: 5}),
                 lockLpParams: Nft.LockLpParams({amount: 50, price: 1 ether}),
@@ -114,6 +151,7 @@ contract CreateTest is Test {
                 symbol: "symbol",
                 categories: categories,
                 maxMintSupply: 3000,
+                royaltyRate: 0,
                 refundParams: Nft.RefundParams({mintEndTimestamp: 500}),
                 vestingParams: Nft.VestingParams({receiver: address(0x123), duration: 5 days, amount: 5}),
                 lockLpParams: Nft.LockLpParams({amount: 50, price: 1 ether}),
@@ -130,6 +168,7 @@ contract CreateTest is Test {
                 symbol: "symbol",
                 categories: categories,
                 maxMintSupply: 3000,
+                royaltyRate: 0,
                 refundParams: Nft.RefundParams({mintEndTimestamp: 500}),
                 vestingParams: Nft.VestingParams({receiver: address(0x123), duration: 5 days, amount: 5}),
                 lockLpParams: Nft.LockLpParams({amount: 50, price: 1 ether}),
@@ -153,6 +192,7 @@ contract CreateTest is Test {
                 symbol: "symbol",
                 categories: categories,
                 maxMintSupply: 3000,
+                royaltyRate: 0,
                 refundParams: Nft.RefundParams({mintEndTimestamp: 500}),
                 vestingParams: Nft.VestingParams({receiver: address(0x123), duration: 5 days, amount: 5}),
                 lockLpParams: Nft.LockLpParams({amount: 0, price: 1 ether}),
@@ -169,6 +209,7 @@ contract CreateTest is Test {
                 symbol: "symbol",
                 categories: categories,
                 maxMintSupply: 3000,
+                royaltyRate: 0,
                 refundParams: Nft.RefundParams({mintEndTimestamp: 500}),
                 vestingParams: Nft.VestingParams({receiver: address(0x123), duration: 5 days, amount: 5}),
                 lockLpParams: Nft.LockLpParams({amount: 100, price: 0}),
@@ -192,6 +233,7 @@ contract CreateTest is Test {
                 symbol: "symbol",
                 categories: categories,
                 maxMintSupply: 3000,
+                royaltyRate: 0,
                 refundParams: Nft.RefundParams({mintEndTimestamp: 500}),
                 vestingParams: Nft.VestingParams({receiver: address(0), duration: 5 days, amount: 5}),
                 lockLpParams: Nft.LockLpParams({amount: 0, price: 1 ether}),
@@ -208,6 +250,7 @@ contract CreateTest is Test {
                 symbol: "symbol",
                 categories: categories,
                 maxMintSupply: 3000,
+                royaltyRate: 0,
                 refundParams: Nft.RefundParams({mintEndTimestamp: 500}),
                 vestingParams: Nft.VestingParams({receiver: address(0x123), duration: 5 days, amount: 0}),
                 lockLpParams: Nft.LockLpParams({amount: 100, price: 0}),
@@ -232,6 +275,7 @@ contract CreateTest is Test {
                 symbol: "symbol",
                 categories: categories,
                 maxMintSupply: 3000,
+                royaltyRate: 0,
                 refundParams: Nft.RefundParams({mintEndTimestamp: uint64(block.timestamp - 1)}),
                 vestingParams: Nft.VestingParams({receiver: address(0x123), duration: 5 days, amount: 10}),
                 lockLpParams: Nft.LockLpParams({amount: 100, price: 1 ether}),

@@ -51,6 +51,7 @@ contract RefundTest is Test {
                     symbol: "symbol",
                     categories: categories,
                     maxMintSupply: 100,
+                    royaltyRate: 0,
                     refundParams: Nft.RefundParams({mintEndTimestamp: mintEndTimestamp}),
                     vestingParams: Nft.VestingParams({receiver: address(0), duration: 0, amount: 0}),
                     lockLpParams: Nft.LockLpParams({amount: 0, price: 0 ether}),
@@ -188,6 +189,7 @@ contract RefundTest is Test {
                     symbol: "symbol",
                     categories: categories,
                     maxMintSupply: 100,
+                    royaltyRate: 0,
                     refundParams: Nft.RefundParams({mintEndTimestamp: 0}), // disable refunds
                     vestingParams: Nft.VestingParams({receiver: address(0), duration: 0, amount: 0}),
                     lockLpParams: Nft.LockLpParams({amount: 0, price: 0 ether}),
@@ -228,6 +230,7 @@ contract RefundTest is Test {
                     symbol: "symbol",
                     categories: categories,
                     maxMintSupply: 100,
+                    royaltyRate: 0,
                     refundParams: Nft.RefundParams({mintEndTimestamp: 0}), // disable refunds
                     vestingParams: Nft.VestingParams({receiver: address(0), duration: 0, amount: 0}),
                     lockLpParams: Nft.LockLpParams({amount: 0, price: 0 ether}),
