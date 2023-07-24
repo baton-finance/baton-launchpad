@@ -22,10 +22,10 @@ forge test -vvv --gas-report
 
 ## Contracts overview
 
-| Contract                                       | LOC | Description                                               |
-| ---------------------------------------------- | --- | --------------------------------------------------------- |
-| [BatonLaunchpad.sol](./src/BatonLaunchpad.sol) | 44  | Factory contract that creates Nfts                        |
-| [Nft.sol](./src/Nft.sol)                       | 340 | Nft contract that contains logic for the core feature set |
+| Contract                                       | SLOC | Description                                               |
+| ---------------------------------------------- | ---- | --------------------------------------------------------- |
+| [BatonLaunchpad.sol](./src/BatonLaunchpad.sol) | 48   | Factory contract that creates Nfts                        |
+| [Nft.sol](./src/Nft.sol)                       | 351  | Nft contract that contains logic for the core feature set |
 
 ## Deployments
 
