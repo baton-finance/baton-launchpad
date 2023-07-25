@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity 0.8.19;
 
 import {LibClone} from "solady/utils/LibClone.sol";
 import {Ownable} from "solady/auth/Ownable.sol";
@@ -9,6 +9,8 @@ contract BatonLaunchpad is Ownable {
     using LibClone for address;
 
     event Create(address indexed nft);
+    event SetNftImplementation(address indexed nftImplementation);
+    event SetFeeRate(uint256 feeRate);
 
     /**
      * @dev Use a struct to avoid "stack too deep" error.
@@ -51,10 +53,8 @@ contract BatonLaunchpad is Ownable {
      * @return nft The address of the newly created NFT contract.
      */
     function create(CreateParams memory createParams, bytes32 salt) public returns (Nft nft) {
-        // deploy the nft
-        nft = Nft(payable(nftImplementation.cloneDeterministic(salt)));
+        nft = Nft(nftImplementation.cloneDeterministic(salt));
 
-        // initialize the nft
         nft.initialize(
             createParams.name,
             createParams.symbol,
@@ -77,6 +77,7 @@ contract BatonLaunchpad is Ownable {
      */
     function setNftImplementation(address _nftImplementation) public onlyOwner {
         nftImplementation = _nftImplementation;
+        emit SetNftImplementation(_nftImplementation);
     }
 
     /**
@@ -85,5 +86,6 @@ contract BatonLaunchpad is Ownable {
      */
     function setFeeRate(uint256 _feeRate) public onlyOwner {
         feeRate = _feeRate;
+        emit SetFeeRate(_feeRate);
     }
 }
