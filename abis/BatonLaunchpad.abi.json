@@ -31,6 +31,19 @@
       {
         "indexed": true,
         "internalType": "address",
+        "name": "nft",
+        "type": "address"
+      }
+    ],
+    "name": "Create",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
         "name": "pendingOwner",
         "type": "address"
       }
@@ -68,6 +81,32 @@
       }
     ],
     "name": "OwnershipTransferred",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "feeRate",
+        "type": "uint256"
+      }
+    ],
+    "name": "SetFeeRate",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "nftImplementation",
+        "type": "address"
+      }
+    ],
+    "name": "SetNftImplementation",
     "type": "event"
   },
   {
@@ -130,6 +169,11 @@
             "internalType": "uint32",
             "name": "maxMintSupply",
             "type": "uint32"
+          },
+          {
+            "internalType": "uint96",
+            "name": "royaltyRate",
+            "type": "uint96"
           },
           {
             "components": [

@@ -182,6 +182,16 @@
   },
   {
     "inputs": [],
+    "name": "RoyaltyOverflow",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "RoyaltyReceiverIsZeroAddress",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "TooFewCategories",
     "type": "error"
   },
@@ -759,6 +769,11 @@
         "type": "uint32"
       },
       {
+        "internalType": "uint96",
+        "name": "royaltyRate",
+        "type": "uint96"
+      },
+      {
         "components": [
           {
             "internalType": "uint64",
@@ -1209,6 +1224,35 @@
   {
     "inputs": [
       {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "salePrice",
+        "type": "uint256"
+      }
+    ],
+    "name": "royaltyInfo",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "receiver",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "royaltyAmount",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "address",
         "name": "from",
         "type": "address"
@@ -1340,7 +1384,7 @@
     "outputs": [
       {
         "internalType": "bool",
-        "name": "",
+        "name": "result",
         "type": "bool"
       }
     ],
