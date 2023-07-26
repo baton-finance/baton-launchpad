@@ -129,7 +129,7 @@ contract Nft is ERC721AUpgradeable, Ownable, ERC2981 {
     constructor(address caviar_, address batonLaunchpad_, address batonFactory_) {
         caviar = Caviar(caviar_);
         batonLaunchpad = BatonLaunchpad(payable(batonLaunchpad_));
-        batonFactory = BatonFactory(payable(batonFactory_));
+        batonFactory = BatonFactory(batonFactory_);
     }
 
     /**
