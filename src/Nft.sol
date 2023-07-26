@@ -287,7 +287,10 @@ contract Nft is ERC721AUpgradeable, Ownable, ERC2981 {
 
     /**
      * @notice Mints NFTs to the vesting receiver. The amount of NFTs that can be minted is based on the vesting rate
-     * and how much time has passed since the last time this function was called.
+     * and how much time has passed since the last time this function was called. Collection creators may be upset if
+     * they create a collection, reserve an amount of supply for themselves, but then can’t access any of it because refunds
+     * are ongoing. To perevnt this, if refunds are enabled, then vesting will start at the mint end date regardless of
+     * whether or not the mint succeeded.
      * @param amount The amount of NFTs to mint
      */
     function vest(uint256 amount) external {
@@ -531,8 +534,9 @@ contract Nft is ERC721AUpgradeable, Ownable, ERC2981 {
             // check that the categories are sorted by price
             if (i != 0 && categories[i - 1].price > categories[i].price) revert CategoriesNotSortedByPrice();
 
-            minEth += categories[i].price * min(categories[i].supply, availableMintSupply);
-            availableMintSupply -= min(categories[i].supply, availableMintSupply);
+            uint256 amount = min(categories[i].supply, availableMintSupply);
+            minEth += categories[i].price * amount;
+            availableMintSupply -= amount;
 
             if (availableMintSupply == 0) break;
         }
