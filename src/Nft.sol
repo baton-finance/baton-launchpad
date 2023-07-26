@@ -441,7 +441,7 @@ contract Nft is ERC721AUpgradeable, Ownable, ERC2981 {
 
         // send the remaining eth in the contract to the owner
         uint256 ethAmount = address(this).balance;
-        owner().safeTransferETH(ethAmount);
+        msg.sender.safeTransferETH(ethAmount);
 
         emit Withdraw(ethAmount);
     }
