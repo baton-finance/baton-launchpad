@@ -289,7 +289,7 @@ contract Nft is ERC721AUpgradeable, Ownable, ERC2981 {
      * @notice Mints NFTs to the vesting receiver. The amount of NFTs that can be minted is based on the vesting rate
      * and how much time has passed since the last time this function was called. Collection creators may be upset if
      * they create a collection, reserve an amount of supply for themselves, but then can’t access any of it because refunds
-     * are ongoing. To perevnt this, if refunds are enabled, then vesting will start at the mint end date regardless of
+     * are ongoing. To prevent this, if refunds are enabled, then vesting will start at the mint end date regardless of
      * whether or not the mint succeeded.
      * @param amount The amount of NFTs to mint
      */
