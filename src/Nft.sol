@@ -472,14 +472,14 @@ contract Nft is ERC721AUpgradeable, Ownable, ERC2981 {
         // consider the malicious case without the frontrunning check:
         //   1. owner calls initiateLockedLpMigration with an honest target
         //   2. baton admin calls migrateLockedLp
-        //   3. before the baton admin’s tx is confirmed, the owner calls initateLockedLpMigration with a dishonest target
+        //   3. before the baton admin’s tx is confirmed, the owner calls initiateLockedLpMigration with a dishonest target
         // the following check prevents this attack.
         if (target != lockedLpMigrationTarget) revert MigrationTargetNotMatched();
 
         // transfer the lp tokens to the migration target
         LpToken lpToken = Pair(caviar.pairs(address(this), address(0), bytes32(0))).lpToken();
         uint256 lpTokenAmount = lpToken.balanceOf(address(this));
-        lpToken.transfer(lockedLpMigrationTarget, lpTokenAmount);
+        lpToken.transfer(target, lpTokenAmount);
 
         emit MigrateLockedLp(target, lpTokenAmount);
     }
