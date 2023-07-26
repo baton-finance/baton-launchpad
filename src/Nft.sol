@@ -12,7 +12,6 @@ import {Pair} from "caviar/Pair.sol";
 import {LpToken} from "caviar/LpToken.sol";
 import {BatonFarm} from "baton-contracts/BatonFarm.sol";
 import {BatonFactory} from "baton-contracts/BatonFactory.sol";
-
 import {BatonLaunchpad} from "./BatonLaunchpad.sol";
 
 contract Nft is ERC721AUpgradeable, Ownable, ERC2981 {
@@ -155,7 +154,7 @@ contract Nft is ERC721AUpgradeable, Ownable, ERC2981 {
         VestingParams memory vestingParams_,
         LockLpParams memory lockLpParams_,
         YieldFarmParams memory yieldFarmParams_
-    ) public initializerERC721A {
+    ) external initializerERC721A {
         if (categories_.length > 256) revert TooManyCategories();
         if (categories_.length == 0) revert TooFewCategories();
 
@@ -204,13 +203,13 @@ contract Nft is ERC721AUpgradeable, Ownable, ERC2981 {
 
     /**
      * @notice Mints an amount of NFTs to the caller from a specific category. The caller must pay
-     * the price that is categoriesspecified in the category and if there is a whitelist associated with the
+     * the price that is categories specified in the category and if there is a whitelist associated with the
      * category then they must also submit a merkle proof showing that they are in the whitelist.
      * @param amount The amount of NFTs to mint
      * @param categoryIndex The index of the category to mint from
      * @param proof The merkle proof (if not required then set to be an empty array)
      */
-    function mint(uint64 amount, uint8 categoryIndex, bytes32[] calldata proof) public payable {
+    function mint(uint64 amount, uint8 categoryIndex, bytes32[] calldata proof) external payable {
         if (amount == 0) revert InvalidNftAmount();
 
         // if refunds are enabled, check that the mint has not expired
@@ -219,7 +218,7 @@ contract Nft is ERC721AUpgradeable, Ownable, ERC2981 {
         }
 
         // check that enough eth was sent to cover the cost of minting
-        Category memory category = _categories[categoryIndex];
+        Category storage category = _categories[categoryIndex];
         uint256 feeRate = batonLaunchpad.feeRate();
         uint256 protocolFee = category.price * amount * feeRate / 1e18;
         if (msg.value != category.price * amount + protocolFee) revert InvalidEthAmount();
@@ -233,10 +232,9 @@ contract Nft is ERC721AUpgradeable, Ownable, ERC2981 {
         // if the merkle root is not zero then verify that the caller is whitelisted
         if (
             category.merkleRoot != bytes32(0)
-            // todo: is it necessary to do a double hash of the caller here?
-            && !MerkleProofLib.verifyCalldata(
-                proof, category.merkleRoot, keccak256(bytes.concat(keccak256(abi.encode(msg.sender))))
-            )
+                && !MerkleProofLib.verifyCalldata(
+                    proof, category.merkleRoot, keccak256(bytes.concat(keccak256(abi.encode(msg.sender))))
+                )
         ) {
             revert InvalidMerkleProof();
         }
@@ -253,7 +251,7 @@ contract Nft is ERC721AUpgradeable, Ownable, ERC2981 {
             mintCompleteTimestamp = uint64(block.timestamp);
         }
 
-        if (protocolFee > 0) {
+        if (protocolFee != 0) {
             address(batonLaunchpad).safeTransferETH(protocolFee);
         }
 
@@ -267,7 +265,7 @@ contract Nft is ERC721AUpgradeable, Ownable, ERC2981 {
      * live. This feature is optional and only works if the creator of the contract enables it.
      * @param tokenIds The token ids to refund
      */
-    function refund(uint256[] calldata tokenIds) public {
+    function refund(uint256[] calldata tokenIds) external {
         if (_refundParams.mintEndTimestamp == 0) revert RefundsNotEnabled();
         if (mintCompleteTimestamp != 0) revert MintComplete();
         if (block.timestamp <= _refundParams.mintEndTimestamp) revert MintNotExpired();
@@ -292,7 +290,7 @@ contract Nft is ERC721AUpgradeable, Ownable, ERC2981 {
      * and how much time has passed since the last time this function was called.
      * @param amount The amount of NFTs to mint
      */
-    function vest(uint256 amount) public {
+    function vest(uint256 amount) external {
         if (msg.sender != _vestingParams.receiver) revert Unauthorized();
 
         // if the mint end timestamp is set then check that the mint has expired, otherwise check that the mint
@@ -305,7 +303,7 @@ contract Nft is ERC721AUpgradeable, Ownable, ERC2981 {
             revert VestingNotStarted();
         }
 
-        uint256 available = vested() - totalVestClaimed;
+        uint256 available = totalVested() - totalVestClaimed;
         if (amount > available) revert InsufficientVestedAmount();
 
         totalVestClaimed += uint32(amount);
@@ -323,7 +321,7 @@ contract Nft is ERC721AUpgradeable, Ownable, ERC2981 {
      * @param amount The amount of NFTs to mint
      * @param messages The messages from Reservoir proving that the newly minted NFTs are not stolen
      */
-    function lockLp(uint32 amount, StolenNftFilterOracle.Message[] calldata messages) public {
+    function lockLp(uint32 amount, StolenNftFilterOracle.Message[] calldata messages) external {
         if (mintCompleteTimestamp == 0) revert MintNotComplete();
         if (_lockLpParams.amount == 0) revert LockedLpNotEnabled();
 
@@ -368,7 +366,7 @@ contract Nft is ERC721AUpgradeable, Ownable, ERC2981 {
      * @param amount The amount of NFTs to seed
      * @param messages The messages from Reservoir proving that the newly minted NFTs are not stolen
      */
-    function seedYieldFarm(uint32 amount, StolenNftFilterOracle.Message[] calldata messages) public {
+    function seedYieldFarm(uint32 amount, StolenNftFilterOracle.Message[] calldata messages) external {
         if (_yieldFarmParams.amount == 0) revert YieldFarmNotEnabled();
         if (mintCompleteTimestamp == 0) revert MintNotComplete();
 
@@ -429,7 +427,7 @@ contract Nft is ERC721AUpgradeable, Ownable, ERC2981 {
      * @notice Withdraws ETH from the contract to the owner. This function can only be called after the mint has completed,
      * the liquidity has been locked (if enabled), and the yield farm seeded (if enabled).
      */
-    function withdraw() public onlyOwner {
+    function withdraw() external onlyOwner {
         if (mintCompleteTimestamp == 0) revert MintNotComplete();
 
         // check that locked lp has been fully locked (if locked lp is disabled then 0 == 0 here)
@@ -452,7 +450,7 @@ contract Nft is ERC721AUpgradeable, Ownable, ERC2981 {
      * migration of liquidity to newer versions of NFT AMMs.
      * @param target The address that the locked lp tokens will be migrated to
      */
-    function initiateLockedLpMigration(address target) public onlyOwner {
+    function initiateLockedLpMigration(address target) external onlyOwner {
         lockedLpMigrationTarget = target;
         emit InitiateLockedLpMigration(target);
     }
@@ -463,11 +461,16 @@ contract Nft is ERC721AUpgradeable, Ownable, ERC2981 {
      * function can only be called by the owner of this contract.
      * @param target The address that the locked lp tokens will be migrated to (must match the address set in initiateLockedLpMigration)
      */
-    function migrateLockedLp(address target) public {
+    function migrateLockedLp(address target) external {
         if (msg.sender != batonLaunchpad.owner()) revert Unauthorized();
         if (lockedLpMigrationTarget == address(0)) revert MigrationNotInitiated();
 
         // check that the migration target matches the target set by the nft owner (this check prevents frontrunning)
+        // consider the malicious case without the frontrunning check:
+        //   1. owner calls initiateLockedLpMigration with an honest target
+        //   2. baton admin calls migrateLockedLp
+        //   3. before the baton admin’s tx is confirmed, the owner calls initateLockedLpMigration with a dishonest target
+        // the following check prevents this attack.
         if (target != lockedLpMigrationTarget) revert MigrationTargetNotMatched();
 
         // transfer the lp tokens to the migration target
@@ -484,7 +487,7 @@ contract Nft is ERC721AUpgradeable, Ownable, ERC2981 {
     /**
      * @return The total amount of vested tokens
      */
-    function vested() public view returns (uint256) {
+    function totalVested() public view returns (uint256) {
         // if the mint end timestamp has been set then start vesting at the mint end timestamp, otherwise
         // start vesting at the mint complete timestamp (when all available nfts have been minted)
         uint256 vestingStartTimestamp =
@@ -497,7 +500,7 @@ contract Nft is ERC721AUpgradeable, Ownable, ERC2981 {
         // calculate the amount to be vested as the following:
         // vesting_rate = amount / duration
         // vested_amount = vesting_rate * (min(current_time, vesting_end_time) - vesting_start_time)
-        uint256 vestingRate = uint256(_vestingParams.amount) * 1e18 / uint256(_vestingParams.duration);
+        uint256 vestingRate = FixedPointMathLib.divWad(_vestingParams.amount, _vestingParams.duration);
         return min(
             uint256(_vestingParams.amount),
             FixedPointMathLib.mulDivUp(
@@ -517,11 +520,13 @@ contract Nft is ERC721AUpgradeable, Ownable, ERC2981 {
      * then the minimum that can be raised if the mint completes is 200 ether = 2 ether (category 1 price) * 100 (available mint supply)
      * @param categories The categories to calculate the minimum eth raised for
      * @param availableMintSupply The amount of tokens that are still available to be minted
-     * @return The minimum amount of ETH that will be raised if the mint completes
+     * @return minEth The minimum amount of ETH that will be raised if the mint completes
      */
-    function minEthRaised(Category[] memory categories, uint256 availableMintSupply) public pure returns (uint256) {
-        uint256 minEth = 0;
-
+    function minEthRaised(Category[] memory categories, uint256 availableMintSupply)
+        public
+        pure
+        returns (uint256 minEth)
+    {
         for (uint256 i = 0; i < categories.length; i++) {
             // check that the categories are sorted by price
             if (i != 0 && categories[i - 1].price > categories[i].price) revert CategoriesNotSortedByPrice();
@@ -531,31 +536,29 @@ contract Nft is ERC721AUpgradeable, Ownable, ERC2981 {
 
             if (availableMintSupply == 0) break;
         }
-
-        return minEth;
     }
 
-    function categories(uint8 category) public view returns (Category memory) {
+    function categories(uint8 category) external view returns (Category memory) {
         return _categories[category];
     }
 
-    function accounts(address account) public view returns (Account memory) {
+    function accounts(address account) external view returns (Account memory) {
         return _accounts[account];
     }
 
-    function vestingParams() public view returns (VestingParams memory) {
+    function vestingParams() external view returns (VestingParams memory) {
         return _vestingParams;
     }
 
-    function lockLpParams() public view returns (LockLpParams memory) {
+    function lockLpParams() external view returns (LockLpParams memory) {
         return _lockLpParams;
     }
 
-    function yieldFarmParams() public view returns (YieldFarmParams memory) {
+    function yieldFarmParams() external view returns (YieldFarmParams memory) {
         return _yieldFarmParams;
     }
 
-    function refundParams() public view returns (RefundParams memory) {
+    function refundParams() external view returns (RefundParams memory) {
         return _refundParams;
     }
 

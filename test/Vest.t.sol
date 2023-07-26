@@ -174,7 +174,7 @@ contract VestTest is Test {
     }
 
     function test_vested_ReturnsZeroIfMintNotEnded() public {
-        assertEq(nft.vested(), 0);
+        assertEq(nft.totalVested(), 0);
     }
 
     function test_vested_ReturnsVestedAmount() public {
@@ -186,7 +186,7 @@ contract VestTest is Test {
 
         // claim the vested NFTs
         skip(10 days);
-        uint256 vested = nft.vested();
+        uint256 vested = nft.totalVested();
 
         // assert that the vested amount is correct
         assertEq(vested, 100);
@@ -201,7 +201,7 @@ contract VestTest is Test {
 
         // claim the vested NFTs
         skip(100 days);
-        uint256 vested = nft.vested();
+        uint256 vested = nft.totalVested();
 
         // assert that the vested amount is correct
         assertEq(vested, 300);
