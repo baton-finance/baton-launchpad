@@ -14,6 +14,7 @@ contract SeedYieldFarmTest is Test {
 
     error TransferCallerNotOwnerNorApproved();
     error OwnerQueryForNonexistentToken();
+    error Unauthorized();
 
     address babe = address(0xbabe);
     BatonLaunchpad launchpad;
@@ -296,5 +297,32 @@ contract SeedYieldFarmTest is Test {
 
         // assert that the additional rewards were added
         assertApproxEqAbs(pair.balanceOf(address(nft.yieldFarm())), balanceBefore + amountToLock * 1e18, 100_000);
+    }
+
+    function test_InitiatesYieldFarmMigration() public {
+        vm.startPrank(babe);
+
+        // mint the nft
+        uint256 amount = 3000;
+        nft.mint{value: amount * nft.categories(0).price}(uint64(amount), 0, new bytes32[](0));
+
+        // create the caviar pair
+        pair = caviar.create(address(nft), address(0), bytes32(0));
+
+        // seed the yield farm with just 100 nfts
+        uint256 amountToLock = 100;
+        StolenNftFilterOracle.Message[] memory messages = new StolenNftFilterOracle.Message[](0);
+        nft.seedYieldFarm(uint32(amountToLock), messages);
+
+        vm.stopPrank();
+
+        nft.initiateYieldFarmMigration(address(0x123));
+        assertEq(nft.yieldFarm().migration(), address(0x123));
+    }
+
+    function test_RevertIf_InitiateYieldFarmMigrationCallerIsNotOwner() public {
+        vm.prank(babe);
+        vm.expectRevert(Unauthorized.selector);
+        nft.initiateYieldFarmMigration(address(0x123));
     }
 }
