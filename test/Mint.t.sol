@@ -256,7 +256,7 @@ contract MintTest is Test {
                     name: "name",
                     symbol: "symbol",
                     categories: categories,
-                    maxMintSupply: 100,
+                    maxMintSupply: 1,
                     royaltyRate: 0,
                     refundParams: Nft.RefundParams({mintEndTimestamp: 0}),
                     vestingParams: Nft.VestingParams({receiver: address(0), duration: 0, amount: 0}),
