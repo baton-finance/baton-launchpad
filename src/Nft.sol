@@ -168,6 +168,7 @@ contract Nft is ERC721AUpgradeable, Ownable, ERC2981 {
         if (
             (vestingParams_.receiver != address(0) && vestingParams_.amount == 0)
                 || (vestingParams_.receiver == address(0) && vestingParams_.amount != 0)
+                || (vestingParams_.duration > 3000 days)
         ) revert InvalidVestingParams();
 
         if (

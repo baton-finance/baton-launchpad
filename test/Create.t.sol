@@ -284,6 +284,23 @@ contract CreateTest is Test {
             }),
             keccak256(abi.encode(88))
         );
+
+        // check that it reverts
+        vm.expectRevert(Nft.InvalidVestingParams.selector);
+        launchpad.create(
+            BatonLaunchpad.CreateParams({
+                name: "name",
+                symbol: "symbol",
+                categories: categories,
+                maxMintSupply: 3000,
+                royaltyRate: 0,
+                refundParams: Nft.RefundParams({mintEndTimestamp: 500}),
+                vestingParams: Nft.VestingParams({receiver: address(0x123), duration: 3001 days, amount: 0}),
+                lockLpParams: Nft.LockLpParams({amount: 100, price: 0}),
+                yieldFarmParams: Nft.YieldFarmParams({amount: 0, duration: 0 days})
+            }),
+            keccak256(abi.encode(88))
+        );
     }
 
     function test_RevertIf_InvalidRefundEndTimestampIsSmallerThanCurrentTimestamp() public {
