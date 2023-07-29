@@ -36,7 +36,7 @@ contract CreateTest is Test {
                     name: "name",
                     symbol: "symbol",
                     categories: categories,
-                    maxMintSupply: 199,
+                    maxMintSupply: 300,
                     royaltyRate: 100, // 1%
                     refundParams: Nft.RefundParams({mintEndTimestamp: 20 minutes}),
                     vestingParams: Nft.VestingParams({receiver: address(0x123), duration: 5 days, amount: 5}),
@@ -60,7 +60,7 @@ contract CreateTest is Test {
         assertEq(nft.categories(1).supply, 200);
 
         // check that the max mint supply was set
-        assertEq(nft.maxMintSupply(), 199);
+        assertEq(nft.maxMintSupply(), 300);
 
         // check that the refunds flag was set
         assertEq(nft.refundParams().mintEndTimestamp, 20 minutes);
