@@ -10,6 +10,8 @@ contract BatonLaunchpad is Ownable {
     using LibClone for address;
     using SafeTransferLib for address;
 
+    error FeeRateTooLarge();
+
     event Create(address indexed nft);
     event SetNftImplementation(address indexed nftImplementation);
     event SetFeeRate(uint256 feeRate);
@@ -84,10 +86,11 @@ contract BatonLaunchpad is Ownable {
     }
 
     /**
-     * @notice Sets the fee rate.
-     * @param _feeRate The new fee rate.
+     * @notice Sets the fee rate. The max fee rate is 10%.
+     * @param _feeRate The new fee rate to 1e18 of precision (1e18 == 100%).
      */
     function setFeeRate(uint256 _feeRate) external onlyOwner {
+        if (_feeRate > 0.1 * 1e18) revert FeeRateTooLarge();
         feeRate = _feeRate;
         emit SetFeeRate(_feeRate);
     }
