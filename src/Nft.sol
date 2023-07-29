@@ -60,6 +60,7 @@ contract Nft is ERC721AUpgradeable, Ownable, ERC2981 {
     event Withdraw(uint256 indexed ethAmount);
     event InitiateLockedLpMigration(address indexed target);
     event MigrateLockedLp(address indexed target, uint256 indexed lpTokenAmount);
+    event InitiateYieldFarmMigration(address indexed target);
 
     /// ░░░░░░░░░░░░░░░░░░░░░░░░░
     /// Structs
@@ -491,6 +492,14 @@ contract Nft is ERC721AUpgradeable, Ownable, ERC2981 {
         lpToken.transfer(target, lpTokenAmount);
 
         emit MigrateLockedLp(target, lpTokenAmount);
+    }
+
+    /**
+     * @notice Initiates a migration of yield farming rewards to a new target address.
+     */
+    function intiateYieldFarmMigration(address target) external onlyOwner {
+        yieldFarm.initiateMigration(target);
+        emit InitiateYieldFarmMigration(target);
     }
 
     /// ░░░░░░░░░░░░░░░░░░░░░░░░░
