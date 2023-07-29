@@ -281,7 +281,8 @@ contract Nft is ERC721AUpgradeable, Ownable, ERC2981 {
         if (block.timestamp <= _refundParams.mintEndTimestamp) revert MintNotExpired();
 
         for (uint256 i = 0; i < tokenIds.length; i++) {
-            _burn(tokenIds[i], true);
+            if (ownerOf(tokenIds[i]) != msg.sender) revert Unauthorized();
+            _burn(tokenIds[i]);
         }
 
         uint256 totalRefundAmount =
