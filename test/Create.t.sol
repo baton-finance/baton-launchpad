@@ -36,7 +36,7 @@ contract CreateTest is Test {
                     name: "name",
                     symbol: "symbol",
                     categories: categories,
-                    maxMintSupply: 3000,
+                    maxMintSupply: 199,
                     royaltyRate: 100, // 1%
                     refundParams: Nft.RefundParams({mintEndTimestamp: 500}),
                     vestingParams: Nft.VestingParams({receiver: address(0x123), duration: 5 days, amount: 5}),
@@ -60,7 +60,7 @@ contract CreateTest is Test {
         assertEq(nft.categories(1).supply, 200);
 
         // check that the max mint supply was set
-        assertEq(nft.maxMintSupply(), 3000);
+        assertEq(nft.maxMintSupply(), 199);
 
         // check that the refunds flag was set
         assertEq(nft.refundParams().mintEndTimestamp, 500);
@@ -100,7 +100,7 @@ contract CreateTest is Test {
                     name: "name",
                     symbol: "symbol",
                     categories: categories,
-                    maxMintSupply: 3000,
+                    maxMintSupply: 100,
                     royaltyRate: 0,
                     refundParams: Nft.RefundParams({mintEndTimestamp: 500}),
                     vestingParams: Nft.VestingParams({receiver: address(0x123), duration: 5 days, amount: 5}),
@@ -129,6 +129,30 @@ contract CreateTest is Test {
                 symbol: "symbol",
                 categories: categories,
                 maxMintSupply: 3000,
+                royaltyRate: 0,
+                refundParams: Nft.RefundParams({mintEndTimestamp: 500}),
+                vestingParams: Nft.VestingParams({receiver: address(0x123), duration: 5 days, amount: 5}),
+                lockLpParams: Nft.LockLpParams({amount: 50, price: 1 ether}),
+                yieldFarmParams: Nft.YieldFarmParams({amount: 45, duration: 100 days})
+            }),
+            keccak256(abi.encode(88))
+        );
+    }
+
+    function test_RevertIfMaxMintSupplyIsGreaterThanCategoriesSupply() public {
+        // set the categories
+        Nft.Category[] memory categories = new Nft.Category[](2);
+        categories[0] = Nft.Category({price: 1 ether, supply: 100, merkleRoot: bytes32(0)});
+        categories[1] = Nft.Category({price: 2 ether, supply: 200, merkleRoot: bytes32(0)});
+
+        // check that it reverts
+        vm.expectRevert(Nft.MaxMintSupplyTooLarge.selector);
+        launchpad.create(
+            BatonLaunchpad.CreateParams({
+                name: "name",
+                symbol: "symbol",
+                categories: categories,
+                maxMintSupply: 301,
                 royaltyRate: 0,
                 refundParams: Nft.RefundParams({mintEndTimestamp: 500}),
                 vestingParams: Nft.VestingParams({receiver: address(0x123), duration: 5 days, amount: 5}),
