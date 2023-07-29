@@ -361,6 +361,12 @@ contract CreateTest is Test {
         launchpad.setFeeRate(100);
     }
 
+    function test_RevertIf_setFeeRate_FeeRateIsTooLarge() public {
+        // check that it reverts
+        vm.expectRevert(BatonLaunchpad.FeeRateTooLarge.selector);
+        launchpad.setFeeRate(0.11 * 1e18);
+    }
+
     function test_setNftImplementation_SetsNftImplementation() public {
         // set the nft implementation
         launchpad.setNftImplementation(address(0x123));
