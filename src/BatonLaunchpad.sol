@@ -3,10 +3,12 @@ pragma solidity 0.8.19;
 
 import {LibClone} from "solady/utils/LibClone.sol";
 import {Ownable} from "solady/auth/Ownable.sol";
+import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 import {Nft} from "./Nft.sol";
 
 contract BatonLaunchpad is Ownable {
     using LibClone for address;
+    using SafeTransferLib for address;
 
     event Create(address indexed nft);
     event SetNftImplementation(address indexed nftImplementation);
@@ -52,7 +54,7 @@ contract BatonLaunchpad is Ownable {
      * @param salt The salt used when cloning the NFT via create2 (must be unique).
      * @return nft The address of the newly created NFT contract.
      */
-    function create(CreateParams memory createParams, bytes32 salt) public returns (Nft nft) {
+    function create(CreateParams memory createParams, bytes32 salt) external returns (Nft nft) {
         nft = Nft(nftImplementation.cloneDeterministic(salt));
 
         nft.initialize(
@@ -75,7 +77,7 @@ contract BatonLaunchpad is Ownable {
      * @notice Sets the NFT implementation.
      * @param _nftImplementation The address of the new NFT implementation.
      */
-    function setNftImplementation(address _nftImplementation) public onlyOwner {
+    function setNftImplementation(address _nftImplementation) external onlyOwner {
         nftImplementation = _nftImplementation;
         emit SetNftImplementation(_nftImplementation);
     }
@@ -84,8 +86,15 @@ contract BatonLaunchpad is Ownable {
      * @notice Sets the fee rate.
      * @param _feeRate The new fee rate.
      */
-    function setFeeRate(uint256 _feeRate) public onlyOwner {
+    function setFeeRate(uint256 _feeRate) external onlyOwner {
         feeRate = _feeRate;
         emit SetFeeRate(_feeRate);
+    }
+
+    /**
+     * @notice Withdraws the contract balance to the owner. This is used to claim protocol fees.
+     */
+    function withdraw() external onlyOwner {
+        msg.sender.safeTransferETH(address(this).balance);
     }
 }

@@ -11,6 +11,8 @@ contract CreateTest is Test {
 
     error Unauthorized();
 
+    receive() external payable {}
+
     function setUp() public {
         // deploy the launchpad
         launchpad = new BatonLaunchpad(0);
@@ -313,5 +315,24 @@ contract CreateTest is Test {
         vm.prank(address(0xdead));
         vm.expectRevert(Unauthorized.selector);
         launchpad.setNftImplementation(address(0x123));
+    }
+
+    function test_withdraw_SendsETHToCaller() public {
+        // send some ETH to the launchpad
+        deal(address(launchpad), 100 ether);
+
+        // withdraw the ETH
+        uint256 balanceBefore = address(this).balance;
+        launchpad.withdraw();
+
+        // check that the ETH was sent to the caller
+        assertEq(balanceBefore + 100 ether, address(this).balance);
+    }
+
+    function test_RevertIf_withdraw_CallerIsNotOwner() public {
+        // check that it reverts
+        vm.prank(address(0xdead));
+        vm.expectRevert(Unauthorized.selector);
+        launchpad.withdraw();
     }
 }
