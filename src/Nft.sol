@@ -181,7 +181,10 @@ contract Nft is ERC721AUpgradeable, Ownable, ERC2981 {
                 || (yieldFarmParams_.duration == 0 && yieldFarmParams_.amount != 0)
         ) revert InvalidYieldFarmParams();
 
-        if (refundParams_.mintEndTimestamp != 0 && refundParams_.mintEndTimestamp < block.timestamp) {
+        if (
+            (refundParams_.mintEndTimestamp != 0 && refundParams_.mintEndTimestamp < block.timestamp + 15 minutes)
+                || refundParams_.mintEndTimestamp > block.timestamp + 3000 days
+        ) {
             revert InvalidRefundParams();
         }
 
