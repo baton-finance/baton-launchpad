@@ -497,7 +497,7 @@ contract Nft is ERC721AUpgradeable, Ownable, ERC2981 {
     /**
      * @notice Initiates a migration of yield farming rewards to a new target address.
      */
-    function intiateYieldFarmMigration(address target) external onlyOwner {
+    function initiateYieldFarmMigration(address target) external onlyOwner {
         yieldFarm.initiateMigration(target);
         emit InitiateYieldFarmMigration(target);
     }

@@ -316,13 +316,13 @@ contract SeedYieldFarmTest is Test {
 
         vm.stopPrank();
 
-        nft.intiateYieldFarmMigration(address(0x123));
+        nft.initiateYieldFarmMigration(address(0x123));
         assertEq(nft.yieldFarm().migration(), address(0x123));
     }
 
     function test_RevertIf_InitiateYieldFarmMigrationCallerIsNotOwner() public {
         vm.prank(babe);
         vm.expectRevert(Unauthorized.selector);
-        nft.intiateYieldFarmMigration(address(0x123));
+        nft.initiateYieldFarmMigration(address(0x123));
     }
 }
