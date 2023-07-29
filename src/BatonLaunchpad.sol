@@ -55,6 +55,7 @@ contract BatonLaunchpad is Ownable {
      * @return nft The address of the newly created NFT contract.
      */
     function create(CreateParams memory createParams, bytes32 salt) external returns (Nft nft) {
+        salt = keccak256(abi.encodePacked(salt, msg.sender));
         nft = Nft(nftImplementation.cloneDeterministic(salt));
 
         nft.initialize(
