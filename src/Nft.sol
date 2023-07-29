@@ -300,7 +300,8 @@ contract Nft is ERC721AUpgradeable, Ownable, ERC2981 {
      * and how much time has passed since the last time this function was called. Collection creators may be upset if
      * they create a collection, reserve an amount of supply for themselves, but then can’t access any of it because refunds
      * are ongoing. To prevent this, if refunds are enabled, then vesting will start at the mint end date regardless of
-     * whether or not the mint succeeded.
+     * whether or not the mint succeeded. If the vesting duration has been set to 0 then the vesting receiver can mint
+     * all of their NFTs immediately.
      * @param amount The amount of NFTs to mint
      */
     function vest(uint256 amount) external {
