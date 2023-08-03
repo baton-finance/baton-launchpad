@@ -12,6 +12,7 @@ contract RefundTest is Test {
 
     error OwnerQueryForNonexistentToken();
     error TransferCallerNotOwnerNorApproved();
+    error Unauthorized();
 
     address babe = address(0xbabe);
     BatonLaunchpad launchpad;
@@ -146,7 +147,7 @@ contract RefundTest is Test {
         vm.warp(mintEndTimestamp + 1);
 
         vm.startPrank(address(0xdead));
-        vm.expectRevert(TransferCallerNotOwnerNorApproved.selector);
+        vm.expectRevert(Unauthorized.selector);
         nft.refund(tokenIds);
     }
 
