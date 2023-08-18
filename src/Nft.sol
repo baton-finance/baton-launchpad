@@ -48,6 +48,7 @@ contract Nft is ERC721AUpgradeable, Ownable, ERC2981 {
     error MigrationNotInitiated();
     error MigrationTargetNotMatched();
     error MaxMintSupplyTooLarge();
+    error RoyaltyRateTooHigh();
 
     /// ░░░░░░░░░░░░░░░░░░░░░░░░░
     /// Events
@@ -188,6 +189,8 @@ contract Nft is ERC721AUpgradeable, Ownable, ERC2981 {
         ) {
             revert InvalidRefundParams();
         }
+
+        if (royaltyRate > 3000) revert RoyaltyRateTooHigh();
 
         __ERC721A_init(name_, symbol_);
         _initializeOwner(owner_);
