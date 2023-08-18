@@ -45,7 +45,7 @@ contract BatonLaunchpad is Ownable {
 
     constructor(uint256 _feeRate) {
         _initializeOwner(msg.sender);
-        feeRate = _feeRate;
+        setFeeRate(_feeRate);
     }
 
     receive() external payable {}
@@ -89,7 +89,7 @@ contract BatonLaunchpad is Ownable {
      * @notice Sets the fee rate. The max fee rate is 10%.
      * @param _feeRate The new fee rate to 1e18 of precision (1e18 == 100%).
      */
-    function setFeeRate(uint256 _feeRate) external onlyOwner {
+    function setFeeRate(uint256 _feeRate) public onlyOwner {
         if (_feeRate > 0.1 * 1e18) revert FeeRateTooLarge();
         feeRate = _feeRate;
         emit SetFeeRate(_feeRate);
